@@ -8,7 +8,7 @@ const RESTAURANT_COOKIE = 'tf_restaurant_id'
 
 export async function login(_: unknown, formData: FormData) {
   const rememberMe = formData.get('rememberMe') === 'on'
-  const supabase = await createClient(rememberMe ? 30 : 0)
+  const supabase = await createClient(rememberMe ? 3650 : 0)
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email: formData.get('email') as string,
@@ -31,7 +31,7 @@ export async function login(_: unknown, formData: FormData) {
         path: '/',
         httpOnly: true,
         sameSite: 'lax',
-        ...(rememberMe ? { maxAge: 30 * 24 * 60 * 60 } : {}),
+        ...(rememberMe ? { maxAge: 3650 * 24 * 60 * 60 } : {}),
       })
     }
   }
@@ -56,6 +56,16 @@ export async function register(_: unknown, formData: FormData) {
   })
   if (error) return { error: error.message }
   redirect('/dashboard')
+}
+
+export async function forgotPassword(_: unknown, formData: FormData) {
+  const email = formData.get('email') as string
+  const supabase = await createClient()
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/reset-password`,
+  })
+  if (error) return { error: error.message }
+  return { success: true }
 }
 
 export async function logout() {

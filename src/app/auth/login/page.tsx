@@ -123,7 +123,7 @@ export default function LoginPage() {
                 className="w-4 h-4 rounded border-stone-600 bg-stone-800 text-terracotta focus:ring-terracotta focus:ring-offset-0 cursor-pointer accent-[#C1623F]"
               />
               <label htmlFor="rememberMe" className="text-sm text-stone-400 cursor-pointer select-none">
-                Να με θυμάσαι για 30 ημέρες
+                Να με θυμάσαι
               </label>
             </div>
 
