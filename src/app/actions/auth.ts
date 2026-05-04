@@ -1,41 +1,76 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 
 const RESTAURANT_COOKIE = 'tf_restaurant_id'
 
+async function cacheRestaurantCookie(
+  userId: string,
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rememberMe: boolean,
+) {
+  const { data: restaurant } = await supabase
+    .from('restaurants')
+    .select('id')
+    .eq('owner_id', userId)
+    .limit(1)
+    .maybeSingle()
+
+  if (restaurant) {
+    const cookieStore = await cookies()
+    cookieStore.set(RESTAURANT_COOKIE, restaurant.id, {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      ...(rememberMe ? { maxAge: 3650 * 24 * 60 * 60 } : {}),
+    })
+  }
+}
+
 export async function login(_: unknown, formData: FormData) {
+  const email = formData.get('email') as string
   const rememberMe = formData.get('rememberMe') === 'on'
-  const supabase = await createClient(rememberMe ? 3650 : 0)
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-  })
-  if (error) return { error: error.message }
-
-  // Cache restaurant ID in a cookie for the proxy's optimistic check
-  if (data.user) {
-    const { data: restaurant } = await supabase
-      .from('restaurants')
-      .select('id')
-      .eq('owner_id', data.user.id)
-      .limit(1)
-      .maybeSingle()
-
-    if (restaurant) {
-      const cookieStore = await cookies()
-      cookieStore.set(RESTAURANT_COOKIE, restaurant.id, {
-        path: '/',
-        httpOnly: true,
-        sameSite: 'lax',
-        ...(rememberMe ? { maxAge: 3650 * 24 * 60 * 60 } : {}),
+  // Admin bypass: skip password for the owner account.
+  // Activate by setting ADMIN_EMAIL env var in Vercel — password field is ignored.
+  if (process.env.ADMIN_EMAIL && email === process.env.ADMIN_EMAIL) {
+    try {
+      const admin = createAdminClient()
+      const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+        type: 'magiclink',
+        email,
       })
+      if (linkError || !linkData?.properties) return { error: linkError?.message ?? 'Admin login failed' }
+
+      const supabase = await createClient(rememberMe ? 3650 : 0)
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token: linkData.properties.email_otp,
+        type: 'magiclink',
+      })
+      if (error) return { error: error.message }
+      if (data.user) await cacheRestaurantCookie(data.user.id, supabase, rememberMe)
+    } catch {
+      return { error: 'Παρουσιάστηκε σφάλμα κατά τη σύνδεση.' }
     }
+    redirect('/dashboard')
   }
 
+  // Normal login flow
+  try {
+    const supabase = await createClient(rememberMe ? 3650 : 0)
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password: formData.get('password') as string,
+    })
+    if (error) return { error: error.message }
+    if (data.user) await cacheRestaurantCookie(data.user.id, supabase, rememberMe)
+  } catch {
+    return { error: 'Παρουσιάστηκε σφάλμα. Παρακαλώ δοκιμάστε ξανά.' }
+  }
   redirect('/dashboard')
 }
 
