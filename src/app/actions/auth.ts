@@ -46,15 +46,20 @@ export async function register(_: unknown, formData: FormData) {
     return { error: 'Οι κωδικοί δεν ταιριάζουν' }
   }
 
-  const supabase = await createClient()
-  const { error } = await supabase.auth.signUp({
-    email: formData.get('email') as string,
-    password,
-    options: {
-      data: { full_name: formData.get('name') as string },
-    },
-  })
-  if (error) return { error: error.message }
+  try {
+    const supabase = await createClient()
+    const { error } = await supabase.auth.signUp({
+      email: formData.get('email') as string,
+      password,
+      options: {
+        data: { full_name: formData.get('name') as string },
+      },
+    })
+    if (error) return { error: error.message }
+  } catch {
+    return { error: 'Παρουσιάστηκε σφάλμα. Παρακαλώ δοκιμάστε ξανά.' }
+  }
+  // redirect() throws NEXT_REDIRECT — must be outside try/catch
   redirect('/dashboard')
 }
 
