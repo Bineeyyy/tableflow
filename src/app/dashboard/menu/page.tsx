@@ -130,7 +130,7 @@ export default function MenuPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filtered.map(item => (
-              <div key={item.id} className={cn('bg-white rounded-lg border border-[#E5E7EB] p-5 shadow-card hover:shadow-card-hover transition-all', !item.available && 'opacity-60')}>
+              <div key={item.id} className={cn('bg-white rounded-lg border border-[#0A0A0A] p-5 shadow-card hover:shadow-card-hover transition-all', !item.available && 'opacity-60')}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
