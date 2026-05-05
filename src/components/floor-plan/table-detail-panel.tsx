@@ -36,7 +36,7 @@ export function TableDetailPanel({ table, reservation, onClose, onStatusChange }
   const actions = STATUS_ACTIONS[table.status];
 
   return (
-    <div className="w-80 bg-white rounded-lg shadow-pop border border-[#E5E7EB] overflow-hidden animate-in slide-in-from-right-4 duration-200">
+    <div className="w-full lg:w-80 lg:flex-shrink-0 bg-white rounded-lg shadow-pop border border-[#E5E7EB] overflow-hidden animate-in slide-in-from-right-4 duration-200">
       {/* Header — pure black */}
       <div className="bg-[#0A0A0A] p-5 text-white relative">
         <span aria-hidden className="absolute top-0 left-0 right-0 h-[3px] bg-[#F97316]" />

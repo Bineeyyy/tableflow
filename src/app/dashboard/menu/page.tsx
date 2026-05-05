@@ -75,7 +75,7 @@ export default function MenuPage() {
   return (
     <>
       <TopBar title="Μενού" subtitle="Διαχείριση καταλόγου εστιατορίου" />
-      <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-5">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden max-w-full p-3 md:p-6 space-y-4 md:space-y-5">
 
         {/* Toolbar */}
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">

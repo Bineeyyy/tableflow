@@ -124,9 +124,9 @@ export function FloorPlan({ initialTables, todayReservations }: FloorPlanProps) 
   }
 
   return (
-    <div className="flex gap-4 h-full">
+    <div className="flex flex-col lg:flex-row gap-4 h-full max-w-full">
       {/* Floor Plan Canvas */}
-      <div className="flex-1 flex flex-col gap-3 min-w-0">
+      <div className="flex-1 flex flex-col gap-3 min-w-0 max-w-full">
         {/* Toolbar */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -149,7 +149,7 @@ export function FloorPlan({ initialTables, todayReservations }: FloorPlanProps) 
         </div>
 
         {/* Canvas — dark, content auto-fits & is centered */}
-        <div className="flex-1 rounded-lg border border-white/10 overflow-auto" style={{ background: '#0F0F0F' }}>
+        <div className="flex-1 rounded-lg border border-white/10 overflow-auto max-w-full" style={{ background: '#0F0F0F' }}>
           <div
             className="flex items-center justify-center"
             style={{

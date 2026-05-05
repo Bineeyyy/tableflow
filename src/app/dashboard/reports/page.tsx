@@ -39,7 +39,7 @@ export default function ReportsPage() {
   return (
     <>
       <TopBar title="Αναφορές" subtitle="Στατιστικά & αναλυτικά στοιχεία" />
-      <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-6">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden max-w-full p-3 md:p-6 space-y-4 md:space-y-6">
 
         {/* Period selector */}
         <div className="flex gap-2">

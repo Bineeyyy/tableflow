@@ -129,7 +129,7 @@ export function SettingsForm({ restaurant, tableCount, userEmail }: Props) {
   return (
     <>
       <TopBar title="Ρυθμίσεις" subtitle="Παραμετροποίηση λογαριασμού" />
-      <div className="flex-1 overflow-y-auto p-3 md:p-6">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden max-w-full p-3 md:p-6">
         <div className="max-w-3xl mx-auto space-y-4 md:space-y-6">
 
           {/* Tabs */}
