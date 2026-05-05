@@ -6,25 +6,53 @@ import { createAdminClient } from '@/lib/supabase/admin';
 // Webhooks must not be cached and need raw body for signature verification
 export const dynamic = 'force-dynamic';
 
+const log = (event: string, data: Record<string, unknown> = {}) =>
+  console.log(`[stripe webhook] ${event}`, JSON.stringify(data));
+
+const warn = (event: string, data: Record<string, unknown> = {}) =>
+  console.warn(`[stripe webhook] ${event}`, JSON.stringify(data));
+
+const err = (event: string, data: Record<string, unknown> = {}) =>
+  console.error(`[stripe webhook] ${event}`, JSON.stringify(data));
+
 export async function POST(request: NextRequest) {
   const body = await request.text();
   const signature = request.headers.get('stripe-signature');
 
   if (!signature) {
+    err('missing_signature_header');
     return NextResponse.json({ error: 'Missing stripe-signature header' }, { status: 400 });
+  }
+
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!secret) {
+    err('missing_webhook_secret_env');
+    return NextResponse.json(
+      { error: 'STRIPE_WEBHOOK_SECRET not configured on the server' },
+      { status: 500 },
+    );
   }
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET!,
-    );
-  } catch (err) {
-    console.error('[stripe webhook] signature verification failed:', err);
+    event = stripe.webhooks.constructEvent(body, signature, secret);
+  } catch (e) {
+    // Most common cause of a signature failure here is a test/live mismatch:
+    // the live mode webhook signing secret is set in the env but Stripe sent
+    // a test mode event (or vice versa). Make that obvious in the logs.
+    err('signature_verification_failed', {
+      message: e instanceof Error ? e.message : String(e),
+      hint: 'Most likely a test/live mismatch between STRIPE_WEBHOOK_SECRET in Vercel and the Stripe Dashboard endpoint that fired this event. Verify the secret matches the endpoint mode (test vs live).',
+    });
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
+
+  log('event_received', {
+    id: event.id,
+    type: event.type,
+    livemode: event.livemode,
+    api_version: event.api_version,
+  });
 
   const db = createAdminClient();
 
@@ -34,13 +62,49 @@ export async function POST(request: NextRequest) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         const restaurantId = session.metadata?.restaurant_id;
-        if (!restaurantId || session.mode !== 'subscription') break;
 
-        await db.from('restaurants').update({
-          plan: 'pro',
-          stripe_subscription_id: session.subscription as string,
-          subscription_status: 'active',
-        }).eq('id', restaurantId);
+        if (!restaurantId) {
+          warn('checkout_completed_missing_restaurant_id', {
+            session_id: session.id,
+            metadata: session.metadata,
+          });
+          break;
+        }
+        if (session.mode !== 'subscription') {
+          log('checkout_completed_skipped_non_subscription', {
+            session_id: session.id,
+            mode: session.mode,
+          });
+          break;
+        }
+
+        const { data, error: dbErr } = await db
+          .from('restaurants')
+          .update({
+            plan: 'pro',
+            stripe_subscription_id: session.subscription as string,
+            subscription_status: 'active',
+          })
+          .eq('id', restaurantId)
+          .select('id');
+
+        if (dbErr) {
+          err('checkout_update_failed', {
+            restaurant_id: restaurantId,
+            db_error: dbErr.message,
+            code: dbErr.code,
+            details: dbErr.details,
+          });
+          throw dbErr;
+        }
+        if (!data || data.length === 0) {
+          warn('checkout_update_no_rows', {
+            restaurant_id: restaurantId,
+            hint: 'No restaurant matched this id — was it deleted, or is the metadata wrong?',
+          });
+        } else {
+          log('checkout_update_ok', { restaurant_id: restaurantId, rows: data.length });
+        }
         break;
       }
 
@@ -48,11 +112,35 @@ export async function POST(request: NextRequest) {
       case 'invoice.paid': {
         const invoice = event.data.object as Stripe.Invoice;
         const subId = (invoice as unknown as { subscription?: string }).subscription;
-        if (!subId) break;
 
-        await db.from('restaurants').update({
-          subscription_status: 'active',
-        }).eq('stripe_subscription_id', subId);
+        if (!subId) {
+          log('invoice_paid_no_subscription', { invoice_id: invoice.id });
+          break;
+        }
+
+        const { data, error: dbErr } = await db
+          .from('restaurants')
+          .update({ subscription_status: 'active' })
+          .eq('stripe_subscription_id', subId)
+          .select('id');
+
+        if (dbErr) {
+          err('invoice_paid_update_failed', {
+            stripe_subscription_id: subId,
+            db_error: dbErr.message,
+            code: dbErr.code,
+            details: dbErr.details,
+          });
+          throw dbErr;
+        }
+        if (!data || data.length === 0) {
+          warn('invoice_paid_no_rows', {
+            stripe_subscription_id: subId,
+            hint: 'No restaurant has this stripe_subscription_id stored — checkout.session.completed may not have persisted it yet.',
+          });
+        } else {
+          log('invoice_paid_update_ok', { stripe_subscription_id: subId, rows: data.length });
+        }
         break;
       }
 
@@ -60,11 +148,22 @@ export async function POST(request: NextRequest) {
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice;
         const subId = (invoice as unknown as { subscription?: string }).subscription;
-        if (!subId) break;
+        if (!subId) {
+          log('invoice_failed_no_subscription', { invoice_id: invoice.id });
+          break;
+        }
 
-        await db.from('restaurants').update({
-          subscription_status: 'past_due',
-        }).eq('stripe_subscription_id', subId);
+        const { data, error: dbErr } = await db
+          .from('restaurants')
+          .update({ subscription_status: 'past_due' })
+          .eq('stripe_subscription_id', subId)
+          .select('id');
+
+        if (dbErr) {
+          err('invoice_failed_update_failed', { stripe_subscription_id: subId, db_error: dbErr.message });
+          throw dbErr;
+        }
+        log('invoice_failed_update_ok', { stripe_subscription_id: subId, rows: data?.length ?? 0 });
         break;
       }
 
@@ -72,16 +171,39 @@ export async function POST(request: NextRequest) {
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
 
-        await db.from('restaurants').update({
-          plan: 'free',
-          stripe_subscription_id: null,
-          subscription_status: 'cancelled',
-        }).eq('stripe_subscription_id', subscription.id);
+        const { data, error: dbErr } = await db
+          .from('restaurants')
+          .update({
+            plan: 'free',
+            stripe_subscription_id: null,
+            subscription_status: 'cancelled',
+          })
+          .eq('stripe_subscription_id', subscription.id)
+          .select('id');
+
+        if (dbErr) {
+          err('subscription_deleted_update_failed', {
+            subscription_id: subscription.id,
+            db_error: dbErr.message,
+          });
+          throw dbErr;
+        }
+        log('subscription_deleted_update_ok', {
+          subscription_id: subscription.id,
+          rows: data?.length ?? 0,
+        });
         break;
       }
+
+      default:
+        log('event_unhandled', { type: event.type, id: event.id });
     }
-  } catch (err) {
-    console.error('[stripe webhook] handler error:', err);
+  } catch (e) {
+    err('handler_exception', {
+      event_id: event.id,
+      type: event.type,
+      message: e instanceof Error ? e.message : String(e),
+    });
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 
