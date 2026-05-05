@@ -42,10 +42,10 @@ function parseHours(raw: unknown): DayHours[] {
 function FieldInput({ label, icon: Icon, ...props }: { label: string; icon: React.ElementType } & React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <div>
-      <label className="block text-sm font-medium text-stone-700 mb-1.5">{label}</label>
+      <label className="block text-[12px] font-semibold text-[#0A0A0A] mb-1.5 uppercase tracking-wider">{label}</label>
       <div className="relative">
-        <Icon size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
-        <input {...props} className="w-full pl-9 pr-4 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-terracotta transition-colors" />
+        <Icon size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280]" />
+        <input {...props} className="w-full pl-9 pr-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15 transition-colors" />
       </div>
     </div>
   );
@@ -53,12 +53,12 @@ function FieldInput({ label, icon: Icon, ...props }: { label: string; icon: Reac
 
 function Toggle({ enabled, onToggle, label }: { enabled: boolean; onToggle: () => void; label: string }) {
   return (
-    <div className="flex items-center justify-between py-3.5 border-b border-stone-50 last:border-0">
-      <span className="text-sm text-stone-700">{label}</span>
-      <button onClick={onToggle} className="text-stone-400 hover:text-stone-600 transition-colors">
+    <div className="flex items-center justify-between py-3.5 border-b border-[#E5E7EB] last:border-0">
+      <span className="text-[13px] font-medium text-[#0A0A0A]">{label}</span>
+      <button onClick={onToggle} className="text-[#6B7280] hover:text-[#0A0A0A] transition-colors">
         {enabled
-          ? <ToggleRight size={28} className="text-terracotta" />
-          : <ToggleLeft size={28} />}
+          ? <ToggleRight size={28} className="text-[#F97316]" />
+          : <ToggleLeft size={28} className="text-[#D1D5DB]" />}
       </button>
     </div>
   );
@@ -133,15 +133,15 @@ export function SettingsForm({ restaurant, tableCount, userEmail }: Props) {
         <div className="max-w-3xl mx-auto space-y-6">
 
           {/* Tabs */}
-          <div className="flex gap-1 bg-white rounded-2xl border border-stone-100 shadow-sm p-1.5">
+          <div className="flex gap-1 bg-white rounded-lg border border-[#E5E7EB] shadow-card p-1">
             {TABS.map(t => {
               const Icon = t.icon;
               return (
                 <button key={t.key} onClick={() => setTab(t.key)}
-                  className={cn('flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all',
+                  className={cn('flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md text-[13px] font-bold transition-all',
                     tab === t.key
-                      ? 'bg-terracotta text-white shadow-sm'
-                      : 'text-stone-500 hover:text-stone-700 hover:bg-stone-50')}>
+                      ? 'bg-[#0A0A0A] text-white'
+                      : 'text-[#6B7280] hover:text-[#0A0A0A] hover:bg-[#F8F8F8]')}>
                   <Icon size={15} />
                   <span className="hidden sm:inline">{t.label}</span>
                 </button>
@@ -150,11 +150,11 @@ export function SettingsForm({ restaurant, tableCount, userEmail }: Props) {
           </div>
 
           {/* Tab content */}
-          <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-6 space-y-5">
+          <div className="bg-white rounded-lg border border-[#E5E7EB] shadow-card p-6 space-y-5">
 
             {tab === 'restaurant' && (
               <>
-                <h3 className="font-semibold text-stone-800 flex items-center gap-2"><Utensils size={17} className="text-terracotta" />Στοιχεία Εστιατορίου</h3>
+                <h3 className="font-bold text-[#0A0A0A] tracking-tight flex items-center gap-2"><Utensils size={17} className="text-[#F97316]" />Στοιχεία Εστιατορίου</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">
                     <FieldInput label="Όνομα εστιατορίου" icon={Store} value={restaurantForm.name}
@@ -169,10 +169,10 @@ export function SettingsForm({ restaurant, tableCount, userEmail }: Props) {
                   <FieldInput label="Email επικοινωνίας" icon={Mail} type="email" value={restaurantForm.email}
                     onChange={e => setRestaurantForm(r => ({ ...r, email: e.target.value }))} />
                   <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-1.5">Αριθμός τραπεζιών</label>
+                    <label className="block text-[12px] font-semibold text-[#0A0A0A] mb-1.5 uppercase tracking-wider">Αριθμός τραπεζιών</label>
                     <input type="number" min="1" max="200" value={restaurantForm.capacity}
                       onChange={e => setRestaurantForm(r => ({ ...r, capacity: e.target.value }))}
-                      className="w-full px-4 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-terracotta" />
+                      className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15" />
                   </div>
                 </div>
               </>
@@ -180,28 +180,28 @@ export function SettingsForm({ restaurant, tableCount, userEmail }: Props) {
 
             {tab === 'hours' && (
               <>
-                <h3 className="font-semibold text-stone-800 flex items-center gap-2"><Clock size={17} className="text-terracotta" />Ωράριο Λειτουργίας</h3>
+                <h3 className="font-bold text-[#0A0A0A] tracking-tight flex items-center gap-2"><Clock size={17} className="text-[#F97316]" />Ωράριο Λειτουργίας</h3>
                 <div className="space-y-2">
                   {DAYS.map((day, i) => (
-                    <div key={day} className="flex items-center gap-4 py-2 border-b border-stone-50 last:border-0">
+                    <div key={day} className="flex items-center gap-4 py-2 border-b border-[#E5E7EB] last:border-0">
                       <div className="w-24 flex items-center gap-2">
                         <button onClick={() => toggleHour(i)}>
                           {hours[i].open
-                            ? <ToggleRight size={22} className="text-terracotta" />
-                            : <ToggleLeft size={22} className="text-stone-300" />}
+                            ? <ToggleRight size={22} className="text-[#F97316]" />
+                            : <ToggleLeft size={22} className="text-[#D1D5DB]" />}
                         </button>
-                        <span className={cn('text-sm font-medium', hours[i].open ? 'text-stone-700' : 'text-stone-400')}>{day.slice(0, 3)}.</span>
+                        <span className={cn('text-[13px] font-bold', hours[i].open ? 'text-[#0A0A0A]' : 'text-[#9CA3AF]')}>{day.slice(0, 3)}.</span>
                       </div>
                       {hours[i].open ? (
                         <div className="flex items-center gap-2 flex-1">
                           <input type="time" value={hours[i].from} onChange={e => setHourField(i, 'from', e.target.value)}
-                            className="px-3 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-terracotta bg-white" />
-                          <span className="text-stone-400 text-sm">—</span>
+                            className="px-3 py-1.5 border border-[#E5E7EB] rounded-md text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15 bg-white" />
+                          <span className="text-[#9CA3AF] text-[13px]">—</span>
                           <input type="time" value={hours[i].to} onChange={e => setHourField(i, 'to', e.target.value)}
-                            className="px-3 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-terracotta bg-white" />
+                            className="px-3 py-1.5 border border-[#E5E7EB] rounded-md text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15 bg-white" />
                         </div>
                       ) : (
-                        <span className="text-sm text-stone-400 italic">Κλειστό</span>
+                        <span className="text-[13px] text-[#9CA3AF] italic">Κλειστό</span>
                       )}
                     </div>
                   ))}
@@ -211,7 +211,7 @@ export function SettingsForm({ restaurant, tableCount, userEmail }: Props) {
 
             {tab === 'notifications' && (
               <>
-                <h3 className="font-semibold text-stone-800 flex items-center gap-2"><Bell size={17} className="text-terracotta" />Ειδοποιήσεις</h3>
+                <h3 className="font-bold text-[#0A0A0A] tracking-tight flex items-center gap-2"><Bell size={17} className="text-[#F97316]" />Ειδοποιήσεις</h3>
                 <div>
                   <Toggle enabled={notifs.newReservation} onToggle={() => setNotifs(n => ({ ...n, newReservation: !n.newReservation }))} label="Νέα κράτηση" />
                   <Toggle enabled={notifs.orderClosed} onToggle={() => setNotifs(n => ({ ...n, orderClosed: !n.orderClosed }))} label="Κλείσιμο παραγγελίας" />
@@ -224,38 +224,38 @@ export function SettingsForm({ restaurant, tableCount, userEmail }: Props) {
 
             {tab === 'account' && (
               <>
-                <h3 className="font-semibold text-stone-800 flex items-center gap-2"><User size={17} className="text-terracotta" />Στοιχεία Λογαριασμού</h3>
+                <h3 className="font-bold text-[#0A0A0A] tracking-tight flex items-center gap-2"><User size={17} className="text-[#F97316]" />Στοιχεία Λογαριασμού</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-1.5">Όνομα</label>
+                    <label className="block text-[12px] font-semibold text-[#0A0A0A] mb-1.5 uppercase tracking-wider">Όνομα</label>
                     <input type="text" value={account.firstName} onChange={e => setAccount(a => ({ ...a, firstName: e.target.value }))}
-                      className="w-full px-4 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-terracotta" />
+                      className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-1.5">Επώνυμο</label>
+                    <label className="block text-[12px] font-semibold text-[#0A0A0A] mb-1.5 uppercase tracking-wider">Επώνυμο</label>
                     <input type="text" value={account.lastName} onChange={e => setAccount(a => ({ ...a, lastName: e.target.value }))}
-                      className="w-full px-4 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-terracotta" />
+                      className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15" />
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium text-stone-700 mb-1.5">Email</label>
+                    <label className="block text-[12px] font-semibold text-[#0A0A0A] mb-1.5 uppercase tracking-wider">Email</label>
                     <input type="email" value={account.email} onChange={e => setAccount(a => ({ ...a, email: e.target.value }))}
-                      className="w-full px-4 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-terracotta" />
+                      className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15" />
                   </div>
-                  <div className="col-span-2 pt-2 border-t border-stone-100">
-                    <p className="text-sm font-semibold text-stone-700 mb-3">Αλλαγή Κωδικού</p>
+                  <div className="col-span-2 pt-2 border-t border-[#E5E7EB]">
+                    <p className="text-[13px] font-bold text-[#0A0A0A] tracking-tight mb-3">Αλλαγή Κωδικού</p>
                     <div className="space-y-3">
                       <div className="relative">
                         <input type={showPassword ? 'text' : 'password'} placeholder="Τρέχων κωδικός"
                           value={account.currentPassword} onChange={e => setAccount(a => ({ ...a, currentPassword: e.target.value }))}
-                          className="w-full px-4 py-2.5 pr-10 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-terracotta" />
+                          className="w-full px-4 py-2.5 pr-10 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15" />
                         <button type="button" onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 transition-colors">
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7280] hover:text-[#0A0A0A] transition-colors">
                           {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
                       </div>
                       <input type="password" placeholder="Νέος κωδικός"
                         value={account.newPassword} onChange={e => setAccount(a => ({ ...a, newPassword: e.target.value }))}
-                        className="w-full px-4 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-terracotta" />
+                        className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15" />
                     </div>
                   </div>
                 </div>
@@ -263,14 +263,14 @@ export function SettingsForm({ restaurant, tableCount, userEmail }: Props) {
             )}
 
             {/* Save button */}
-            <div className="flex items-center justify-between pt-4 border-t border-stone-100">
+            <div className="flex items-center justify-between pt-4 border-t border-[#E5E7EB]">
               <div>
-                {saved && <p className="text-sm text-emerald-600 font-medium flex items-center gap-1.5">✓ Οι αλλαγές αποθηκεύτηκαν</p>}
-                {saveError && <p className="text-sm text-red-500 font-medium">{saveError}</p>}
+                {saved && <p className="text-[13px] text-[#10B981] font-bold flex items-center gap-1.5">✓ Οι αλλαγές αποθηκεύτηκαν</p>}
+                {saveError && <p className="text-[13px] text-[#EF4444] font-bold">{saveError}</p>}
               </div>
               <button onClick={handleSave} disabled={saving}
-                className="flex items-center gap-2 px-6 py-2.5 bg-terracotta hover:bg-terracotta-dark text-white text-sm font-medium rounded-xl transition-colors active:scale-95 shadow-sm shadow-terracotta/20 disabled:opacity-60 disabled:cursor-not-allowed">
-                <Save size={15} />
+                className="flex items-center gap-2 px-5 py-2.5 bg-[#F97316] hover:bg-[#EA580C] text-white text-[13px] font-bold rounded-lg transition-colors active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed">
+                <Save size={15} strokeWidth={2.6} />
                 {saving ? 'Αποθήκευση…' : 'Αποθήκευση'}
               </button>
             </div>

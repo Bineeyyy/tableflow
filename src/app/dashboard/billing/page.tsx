@@ -42,11 +42,11 @@ const PLAN_META = {
     period: '/μήνα',
     description: 'Ιδανικό για μικρά εστιατόρια που ξεκινούν',
     Icon: Star,
-    color: 'border-stone-200',
-    headerBg: 'bg-stone-50',
-    headerText: 'text-stone-800',
-    subText: 'text-stone-500',
-    iconBg: 'bg-stone-200 text-stone-600',
+    color: 'border-[#E5E7EB]',
+    headerBg: 'bg-[#F8F8F8]',
+    headerText: 'text-[#0A0A0A]',
+    subText: 'text-[#6B7280]',
+    iconBg: 'bg-[#E5E7EB] text-[#6B7280]',
     features: [
       { label: 'Έως 10 τραπέζια', ok: true },
       { label: 'Βασική κάτοψη', ok: true },
@@ -64,11 +64,11 @@ const PLAN_META = {
     period: '/μήνα',
     description: 'Για επαγγελματίες που θέλουν όλες τις δυνατότητες',
     Icon: Zap,
-    color: 'border-terracotta shadow-lg shadow-terracotta/10',
-    headerBg: 'bg-gradient-to-br from-terracotta to-terracotta-dark',
+    color: 'border-[#F97316]',
+    headerBg: 'bg-[#0A0A0A]',
     headerText: 'text-white',
-    subText: 'text-white/70',
-    iconBg: 'bg-white/20 text-white',
+    subText: 'text-white/60',
+    iconBg: 'bg-[#F97316] text-white',
     badge: 'Δημοφιλές',
     features: [
       { label: 'Απεριόριστα τραπέζια', ok: true },
@@ -87,11 +87,11 @@ const PLAN_META = {
     period: '/μήνα',
     description: 'Για αλυσίδες και μεγάλες επιχειρήσεις εστίασης',
     Icon: Building2,
-    color: 'border-stone-300',
-    headerBg: 'bg-stone-900',
-    headerText: 'text-white',
-    subText: 'text-white/70',
-    iconBg: 'bg-white/20 text-white',
+    color: 'border-[#E5E7EB]',
+    headerBg: 'bg-white',
+    headerText: 'text-[#0A0A0A]',
+    subText: 'text-[#6B7280]',
+    iconBg: 'bg-[#0A0A0A] text-white',
     features: [
       { label: 'Απεριόριστα τραπέζια', ok: true },
       { label: 'Πολλαπλά εστιατόρια', ok: true },
@@ -116,16 +116,16 @@ function StatusBanner({
 }) {
   if (status === 'past_due') {
     return (
-      <div className="flex items-start gap-3 px-5 py-4 bg-red-50 border border-red-200 rounded-2xl">
-        <AlertTriangle size={20} className="text-red-500 mt-0.5 flex-shrink-0" />
+      <div className="flex items-start gap-3 px-5 py-4 bg-white border border-[#EF4444]/30 rounded-lg shadow-card">
+        <AlertTriangle size={20} className="text-[#EF4444] mt-0.5 flex-shrink-0" />
         <div className="flex-1">
-          <p className="font-semibold text-red-800">Η πληρωμή απέτυχε</p>
-          <p className="text-sm text-red-600 mt-0.5">
+          <p className="font-bold text-[#0A0A0A] tracking-tight">Η πληρωμή απέτυχε</p>
+          <p className="text-[13px] text-[#6B7280] mt-0.5">
             Η τελευταία χρέωση δεν πραγματοποιήθηκε. Ενημερώστε την κάρτα σας για να διατηρήσετε πρόσβαση.
           </p>
         </div>
         {hasCustomer && (
-          <PortalButton className="text-red-600 hover:text-red-800 whitespace-nowrap" />
+          <PortalButton className="text-[#EF4444] hover:text-[#B91C1C] whitespace-nowrap" />
         )}
       </div>
     );
@@ -133,11 +133,11 @@ function StatusBanner({
 
   if (status === 'cancelled') {
     return (
-      <div className="flex items-start gap-3 px-5 py-4 bg-amber-50 border border-amber-200 rounded-2xl">
-        <AlertTriangle size={20} className="text-amber-500 mt-0.5 flex-shrink-0" />
+      <div className="flex items-start gap-3 px-5 py-4 bg-white border border-[#F97316]/30 rounded-lg shadow-card">
+        <AlertTriangle size={20} className="text-[#F97316] mt-0.5 flex-shrink-0" />
         <div className="flex-1">
-          <p className="font-semibold text-amber-800">Η συνδρομή σας έληξε</p>
-          <p className="text-sm text-amber-600 mt-0.5">
+          <p className="font-bold text-[#0A0A0A] tracking-tight">Η συνδρομή σας έληξε</p>
+          <p className="text-[13px] text-[#6B7280] mt-0.5">
             Ο λογαριασμός σας μεταφέρθηκε στο δωρεάν πλάνο. Αναβαθμίστε για να ανακτήσετε πρόσβαση σε Pro λειτουργίες.
           </p>
         </div>
@@ -147,31 +147,31 @@ function StatusBanner({
 
   if (plan === 'pro' && (status === 'active' || status === 'trialing')) {
     return (
-      <div className="flex items-center gap-3 px-5 py-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
-        <CheckCircle2 size={20} className="text-emerald-500 flex-shrink-0" />
+      <div className="flex items-center gap-3 px-5 py-4 bg-white border border-[#10B981]/30 rounded-lg shadow-card">
+        <CheckCircle2 size={20} className="text-[#10B981] flex-shrink-0" />
         <div className="flex-1">
-          <p className="font-semibold text-emerald-800">
+          <p className="font-bold text-[#0A0A0A] tracking-tight">
             Συνδρομή Pro {status === 'trialing' ? '(Δοκιμαστική)' : 'ενεργή'}
           </p>
-          <p className="text-sm text-emerald-600 mt-0.5">Έχετε πρόσβαση σε όλες τις Pro λειτουργίες.</p>
+          <p className="text-[13px] text-[#6B7280] mt-0.5">Έχετε πρόσβαση σε όλες τις Pro λειτουργίες.</p>
         </div>
         {hasCustomer && (
-          <PortalButton className="text-emerald-700 hover:text-emerald-900" />
+          <PortalButton className="text-[#10B981] hover:text-[#047857]" />
         )}
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-3 px-5 py-4 bg-white border border-stone-100 rounded-2xl shadow-sm">
-      <div className="w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center flex-shrink-0">
-        <Shield size={18} className="text-stone-500" />
+    <div className="flex items-center gap-3 px-5 py-4 bg-white border border-[#E5E7EB] rounded-lg shadow-card">
+      <div className="w-10 h-10 rounded-lg bg-[#F8F8F8] flex items-center justify-center flex-shrink-0">
+        <Shield size={18} className="text-[#6B7280]" />
       </div>
       <div>
-        <p className="font-semibold text-stone-800">
-          Τρέχον Πλάνο: <span className="text-terracotta capitalize">{plan}</span>
+        <p className="font-bold text-[#0A0A0A] tracking-tight">
+          Τρέχον Πλάνο: <span className="text-[#F97316] capitalize">{plan}</span>
         </p>
-        <p className="text-sm text-stone-500">Αναβαθμίστε για περισσότερες δυνατότητες</p>
+        <p className="text-[13px] text-[#6B7280]">Αναβαθμίστε για περισσότερες δυνατότητες</p>
       </div>
     </div>
   );
@@ -196,9 +196,9 @@ export default async function BillingPage({
 
         {/* Post-checkout success notice */}
         {success === '1' && (
-          <div className="flex items-center gap-3 px-5 py-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
-            <CheckCircle2 size={20} className="text-emerald-500" />
-            <p className="text-emerald-800 font-medium">
+          <div className="flex items-center gap-3 px-5 py-4 bg-white border border-[#10B981]/30 rounded-lg shadow-card">
+            <CheckCircle2 size={20} className="text-[#10B981]" />
+            <p className="text-[#0A0A0A] font-semibold">
               Η πληρωμή ολοκληρώθηκε! Η συνδρομή σας θα ενεργοποιηθεί σε λίγα δευτερόλεπτα.
             </p>
           </div>
@@ -217,40 +217,40 @@ export default async function BillingPage({
               <div
                 key={key}
                 className={cn(
-                  'relative bg-white rounded-2xl border-2 overflow-hidden flex flex-col',
+                  'relative bg-white rounded-lg border-2 overflow-hidden flex flex-col shadow-card',
                   meta.color,
-                  isCurrent && 'ring-2 ring-terracotta/30',
+                  isCurrent && 'ring-2 ring-[#F97316]/30',
                 )}
               >
                 {'badge' in meta && meta.badge && (
-                  <div className="absolute top-4 right-4 bg-terracotta text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                  <div className="absolute top-4 right-4 bg-[#F97316] text-white text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wide">
                     {meta.badge}
                   </div>
                 )}
 
                 <div className={cn('p-6', meta.headerBg)}>
-                  <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center mb-4', meta.iconBg)}>
-                    <Icon size={20} />
+                  <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center mb-4', meta.iconBg)}>
+                    <Icon size={20} strokeWidth={2.2} />
                   </div>
-                  <h3 className={cn('text-xl font-bold', meta.headerText)}>{meta.name}</h3>
+                  <h3 className={cn('text-xl font-bold tracking-tight', meta.headerText)}>{meta.name}</h3>
                   <div className="flex items-baseline gap-1 mt-2">
-                    <span className={cn('text-4xl font-extrabold', meta.headerText)}>
+                    <span className={cn('text-[40px] font-extrabold tracking-tight leading-none', meta.headerText)}>
                       {key === 'pro' ? proPrice.amount : meta.price}
                     </span>
-                    <span className={cn('text-sm', meta.subText)}>
+                    <span className={cn('text-[13px] font-medium', meta.subText)}>
                       {key === 'pro' ? proPrice.interval : meta.period}
                     </span>
                   </div>
-                  <p className={cn('text-sm mt-2', meta.subText)}>{meta.description}</p>
+                  <p className={cn('text-[13px] mt-3', meta.subText)}>{meta.description}</p>
                 </div>
 
-                <div className="p-6 flex-1 space-y-3">
+                <div className="p-6 flex-1 space-y-3 border-t border-[#E5E7EB]">
                   {meta.features.map((f, i) => (
                     <div key={i} className="flex items-center gap-3">
                       {f.ok
-                        ? <Check size={16} className="text-emerald-500 flex-shrink-0" />
-                        : <X size={16} className="text-stone-300 flex-shrink-0" />}
-                      <span className={cn('text-sm', f.ok ? 'text-stone-700' : 'text-stone-400')}>
+                        ? <Check size={16} className="text-[#10B981] flex-shrink-0" strokeWidth={2.6} />
+                        : <X size={16} className="text-[#D1D5DB] flex-shrink-0" />}
+                      <span className={cn('text-[13px]', f.ok ? 'text-[#0A0A0A] font-medium' : 'text-[#9CA3AF]')}>
                         {f.label}
                       </span>
                     </div>
@@ -259,21 +259,21 @@ export default async function BillingPage({
 
                 <div className="px-6 pb-6">
                   {isCurrent ? (
-                    <div className="w-full py-3 rounded-xl text-sm font-semibold bg-stone-100 text-stone-500 flex items-center justify-center gap-2">
-                      <Check size={15} />
+                    <div className="w-full py-3 rounded-lg text-[13px] font-bold bg-[#F8F8F8] text-[#6B7280] flex items-center justify-center gap-2 border border-[#E5E7EB]">
+                      <Check size={15} strokeWidth={2.6} />
                       Τρέχον Πλάνο
                     </div>
                   ) : key === 'pro' && currentPlan === 'free' ? (
                     <SubscribeButton
                       plan="pro"
-                      className="bg-terracotta hover:bg-terracotta-dark text-white shadow-sm shadow-terracotta/30"
+                      className="bg-[#F97316] hover:bg-[#EA580C] text-white"
                     />
                   ) : key === 'enterprise' ? (
-                    <button className="w-full py-3 rounded-xl text-sm font-semibold bg-stone-900 hover:bg-stone-800 text-white transition-all active:scale-95">
+                    <button className="w-full py-3 rounded-lg text-[13px] font-bold bg-[#0A0A0A] hover:bg-black text-white transition-all active:scale-[0.98]">
                       Επικοινωνήστε μαζί μας
                     </button>
                   ) : (
-                    <div className="w-full py-3 rounded-xl text-sm font-semibold bg-stone-100 text-stone-400 flex items-center justify-center">
+                    <div className="w-full py-3 rounded-lg text-[13px] font-semibold bg-[#F8F8F8] text-[#9CA3AF] flex items-center justify-center border border-[#E5E7EB]">
                       Μη διαθέσιμο
                     </div>
                   )}
@@ -284,33 +284,33 @@ export default async function BillingPage({
         </div>
 
         {/* Payment info */}
-        <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <CreditCard size={18} className="text-stone-500" />
-            <h3 className="font-semibold text-stone-800">Στοιχεία Πληρωμής</h3>
+        <div className="bg-white rounded-lg border border-[#E5E7EB] shadow-card p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <CreditCard size={18} className="text-[#0A0A0A]" />
+            <h3 className="font-bold text-[#0A0A0A] tracking-tight">Στοιχεία Πληρωμής</h3>
           </div>
-          <div className="bg-stone-50 rounded-xl p-4 flex items-center gap-4">
-            <div className="w-12 h-8 bg-stone-200 rounded-md flex items-center justify-center">
-              <span className="text-xs font-bold text-stone-500">VISA</span>
+          <div className="bg-[#F8F8F8] border border-[#E5E7EB] rounded-lg p-4 flex items-center gap-4">
+            <div className="w-12 h-8 bg-[#0A0A0A] rounded-md flex items-center justify-center">
+              <span className="text-[10px] font-bold text-white tracking-wider">VISA</span>
             </div>
             <div className="flex-1">
               {hasCustomer ? (
                 <>
-                  <p className="text-sm font-medium text-stone-700">Διαχειριστείτε τα στοιχεία πληρωμής σας</p>
-                  <p className="text-xs text-stone-400">Ακύρωση, αλλαγή κάρτας ή προβολή ιστορικού χρεώσεων</p>
+                  <p className="text-[13px] font-semibold text-[#0A0A0A]">Διαχειριστείτε τα στοιχεία πληρωμής σας</p>
+                  <p className="text-[12px] text-[#6B7280]">Ακύρωση, αλλαγή κάρτας ή προβολή ιστορικού χρεώσεων</p>
                 </>
               ) : (
                 <>
-                  <p className="text-sm font-medium text-stone-700">Δεν έχει προστεθεί κάρτα πληρωμής</p>
-                  <p className="text-xs text-stone-400">Προσθέστε κάρτα για να αναβαθμίσετε το πλάνο σας</p>
+                  <p className="text-[13px] font-semibold text-[#0A0A0A]">Δεν έχει προστεθεί κάρτα πληρωμής</p>
+                  <p className="text-[12px] text-[#6B7280]">Προσθέστε κάρτα για να αναβαθμίσετε το πλάνο σας</p>
                 </>
               )}
             </div>
             {hasCustomer && (
-              <PortalButton className="text-terracotta hover:text-terracotta-dark" />
+              <PortalButton className="text-[#F97316] hover:text-[#EA580C]" />
             )}
           </div>
-          <p className="text-xs text-stone-400 mt-3 flex items-center gap-1.5">
+          <p className="text-[11px] text-[#6B7280] mt-3 flex items-center gap-1.5">
             <Shield size={12} />
             Ασφαλείς συναλλαγές μέσω Stripe. Ακύρωση οποτεδήποτε.
           </p>

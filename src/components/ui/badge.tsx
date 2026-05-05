@@ -3,10 +3,10 @@ import { TableStatus } from '@/types';
 import { getStatusLabel } from '@/lib/utils';
 
 const statusStyles: Record<TableStatus, string> = {
-  available: 'bg-green-100 text-green-800 border-green-200',
-  occupied: 'bg-red-100 text-red-800 border-red-200',
-  reserved: 'bg-orange-100 text-orange-800 border-orange-200',
-  cleaning: 'bg-blue-100 text-blue-800 border-blue-200',
+  available: 'bg-[#10B981]/10 text-[#047857] ring-1 ring-inset ring-[#10B981]/20',
+  occupied: 'bg-[#EF4444]/10 text-[#B91C1C] ring-1 ring-inset ring-[#EF4444]/20',
+  reserved: 'bg-[#F97316]/10 text-[#C2410C] ring-1 ring-inset ring-[#F97316]/20',
+  cleaning: 'bg-[#3B82F6]/10 text-[#1D4ED8] ring-1 ring-inset ring-[#3B82F6]/20',
 };
 
 interface StatusBadgeProps {
@@ -18,7 +18,7 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border',
+        'inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wide',
         statusStyles[status],
         className
       )}

@@ -8,13 +8,13 @@ import { MenuItem, MenuCategory } from '@/types';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, UtensilsCrossed, Search } from 'lucide-react';
 
-const CATEGORIES: { key: MenuCategory | 'all'; label: string; emoji: string }[] = [
-  { key: 'all', label: 'Όλα', emoji: '🍽️' },
-  { key: 'starters', label: 'Ορεκτικά', emoji: '🥗' },
-  { key: 'mains', label: 'Κυρίως', emoji: '🍖' },
-  { key: 'salads', label: 'Σαλάτες', emoji: '🥬' },
-  { key: 'desserts', label: 'Γλυκά', emoji: '🍮' },
-  { key: 'drinks', label: 'Ποτά', emoji: '🍷' },
+const CATEGORIES: { key: MenuCategory | 'all'; label: string }[] = [
+  { key: 'all', label: 'Όλα' },
+  { key: 'starters', label: 'Ορεκτικά' },
+  { key: 'mains', label: 'Κυρίως' },
+  { key: 'salads', label: 'Σαλάτες' },
+  { key: 'desserts', label: 'Γλυκά' },
+  { key: 'drinks', label: 'Ποτά' },
 ];
 
 const CATEGORY_LABELS: Record<MenuCategory, string> = {
@@ -80,20 +80,20 @@ export default function MenuPage() {
         {/* Toolbar */}
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
           <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280]" />
             <input
               type="text"
               placeholder="Αναζήτηση πιάτου..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-white border border-stone-200 rounded-xl text-sm text-stone-700 placeholder-stone-400 focus:outline-none focus:border-terracotta w-64"
+              className="pl-9 pr-4 py-2 bg-white border border-[#E5E7EB] rounded-lg text-[13px] text-[#0A0A0A] placeholder-[#9CA3AF] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15 w-64"
             />
           </div>
           <button
             onClick={openAdd}
-            className="flex items-center gap-2 px-4 py-2 bg-terracotta hover:bg-terracotta-dark text-white text-sm font-medium rounded-xl transition-colors shadow-sm shadow-terracotta/20 active:scale-95"
+            className="flex items-center gap-2 px-4 py-2 bg-[#F97316] hover:bg-[#EA580C] text-white text-[13px] font-bold rounded-lg transition-colors active:scale-[0.98]"
           >
-            <Plus size={16} />
+            <Plus size={16} strokeWidth={2.6} />
             Προσθήκη Πιάτου
           </button>
         </div>
@@ -105,16 +105,15 @@ export default function MenuPage() {
               key={cat.key}
               onClick={() => setActiveCategory(cat.key)}
               className={cn(
-                'flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all',
+                'flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-semibold whitespace-nowrap transition-all',
                 activeCategory === cat.key
-                  ? 'bg-terracotta text-white shadow-sm'
-                  : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'
+                  ? 'bg-[#0A0A0A] text-white'
+                  : 'bg-white text-[#0A0A0A] hover:bg-[#F8F8F8] border border-[#E5E7EB]'
               )}
             >
-              <span>{cat.emoji}</span>
               <span>{cat.label}</span>
-              <span className={cn('text-xs px-1.5 rounded-full',
-                activeCategory === cat.key ? 'bg-white/20 text-white' : 'bg-stone-100 text-stone-500'
+              <span className={cn('text-[10px] px-1.5 py-0.5 rounded-md font-bold tabular-nums',
+                activeCategory === cat.key ? 'bg-white/20 text-white' : 'bg-[#F8F8F8] text-[#6B7280]'
               )}>
                 {cat.key === 'all' ? items.length : items.filter(i => i.category === cat.key).length}
               </span>
@@ -124,44 +123,44 @@ export default function MenuPage() {
 
         {/* Items grid */}
         {filtered.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-stone-100 py-16 text-center">
-            <UtensilsCrossed size={40} className="mx-auto text-stone-200 mb-3" />
-            <p className="text-stone-500">Δεν βρέθηκαν πιάτα</p>
+          <div className="bg-white rounded-lg border border-[#E5E7EB] py-16 text-center">
+            <UtensilsCrossed size={40} className="mx-auto text-[#D1D5DB] mb-3" />
+            <p className="text-[#6B7280] text-[13px]">Δεν βρέθηκαν πιάτα</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filtered.map(item => (
-              <div key={item.id} className={cn('bg-white rounded-2xl border p-5 shadow-sm hover:shadow-md transition-all', !item.available && 'opacity-60')}>
+              <div key={item.id} className={cn('bg-white rounded-lg border border-[#E5E7EB] p-5 shadow-card hover:shadow-card-hover transition-all', !item.available && 'opacity-60')}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs bg-stone-100 text-stone-500 px-2 py-0.5 rounded-full">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[10px] bg-[#F8F8F8] text-[#6B7280] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider border border-[#E5E7EB]">
                         {CATEGORY_LABELS[item.category]}
                       </span>
                       {!item.available && (
-                        <span className="text-xs bg-red-50 text-red-500 px-2 py-0.5 rounded-full">Μη διαθέσιμο</span>
+                        <span className="text-[10px] bg-[#EF4444]/10 text-[#B91C1C] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">Μη διαθέσιμο</span>
                       )}
                     </div>
-                    <h4 className="font-semibold text-stone-800 truncate">{item.name}</h4>
-                    {item.description && <p className="text-xs text-stone-400 mt-0.5 line-clamp-2">{item.description}</p>}
+                    <h4 className="font-bold text-[#0A0A0A] tracking-tight truncate">{item.name}</h4>
+                    {item.description && <p className="text-[12px] text-[#6B7280] mt-1 line-clamp-2">{item.description}</p>}
                   </div>
-                  <div className="text-lg font-bold text-terracotta flex-shrink-0">{formatCurrency(item.price)}</div>
+                  <div className="text-[20px] font-extrabold text-[#0A0A0A] tracking-tight flex-shrink-0 tabular-nums">{formatCurrency(item.price)}</div>
                 </div>
-                <div className="flex items-center justify-between mt-4 pt-3 border-t border-stone-100">
+                <div className="flex items-center justify-between mt-4 pt-3 border-t border-[#E5E7EB]">
                   <button
                     onClick={() => toggleAvailable(item.id)}
-                    className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-700 transition-colors"
+                    className="flex items-center gap-1.5 text-[12px] font-semibold text-[#6B7280] hover:text-[#0A0A0A] transition-colors"
                   >
                     {item.available
-                      ? <ToggleRight size={20} className="text-emerald-500" />
-                      : <ToggleLeft size={20} className="text-stone-300" />}
+                      ? <ToggleRight size={20} className="text-[#10B981]" />
+                      : <ToggleLeft size={20} className="text-[#D1D5DB]" />}
                     {item.available ? 'Διαθέσιμο' : 'Μη διαθέσιμο'}
                   </button>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => openEdit(item)} className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-600 transition-colors">
+                    <button onClick={() => openEdit(item)} className="p-1.5 rounded-md hover:bg-[#F8F8F8] text-[#6B7280] hover:text-[#0A0A0A] transition-colors">
                       <Pencil size={15} />
                     </button>
-                    <button onClick={() => deleteItem(item.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-stone-400 hover:text-red-500 transition-colors">
+                    <button onClick={() => deleteItem(item.id)} className="p-1.5 rounded-md hover:bg-[#EF4444]/10 text-[#6B7280] hover:text-[#EF4444] transition-colors">
                       <Trash2 size={15} />
                     </button>
                   </div>
@@ -177,21 +176,21 @@ export default function MenuPage() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-stone-700 mb-1.5">Όνομα *</label>
+              <label className="block text-[12px] font-semibold text-[#0A0A0A] mb-1.5 uppercase tracking-wider">Όνομα *</label>
               <input
                 type="text"
                 value={form.name}
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                 placeholder="π.χ. Μουσακάς"
-                className="w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-terracotta"
+                className="w-full px-3 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1.5">Κατηγορία *</label>
+              <label className="block text-[12px] font-semibold text-[#0A0A0A] mb-1.5 uppercase tracking-wider">Κατηγορία *</label>
               <select
                 value={form.category}
                 onChange={e => setForm(f => ({ ...f, category: e.target.value as MenuCategory }))}
-                className="w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-terracotta bg-white"
+                className="w-full px-3 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15 bg-white"
               >
                 {CATEGORIES.filter(c => c.key !== 'all').map(c => (
                   <option key={c.key} value={c.key}>{c.label}</option>
@@ -199,7 +198,7 @@ export default function MenuPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1.5">Τιμή (€) *</label>
+              <label className="block text-[12px] font-semibold text-[#0A0A0A] mb-1.5 uppercase tracking-wider">Τιμή (€) *</label>
               <input
                 type="number"
                 step="0.50"
@@ -207,28 +206,28 @@ export default function MenuPage() {
                 value={form.price}
                 onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
                 placeholder="0.00"
-                className="w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-terracotta"
+                className="w-full px-3 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15"
               />
             </div>
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-stone-700 mb-1.5">Περιγραφή</label>
+              <label className="block text-[12px] font-semibold text-[#0A0A0A] mb-1.5 uppercase tracking-wider">Περιγραφή</label>
               <textarea
                 value={form.description}
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                 placeholder="Σύντομη περιγραφή..."
                 rows={2}
-                className="w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-terracotta resize-none"
+                className="w-full px-3 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15 resize-none"
               />
             </div>
           </div>
-          <div className="flex items-center gap-3 pt-2 border-t border-stone-100">
-            <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2.5 border border-stone-200 rounded-xl text-sm text-stone-600 hover:bg-stone-50 transition-colors">
+          <div className="flex items-center gap-3 pt-2 border-t border-[#E5E7EB]">
+            <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] font-semibold text-[#0A0A0A] hover:bg-[#F8F8F8] transition-colors">
               Ακύρωση
             </button>
             <button
               onClick={saveItem}
               disabled={!form.name || !form.price}
-              className="flex-1 px-4 py-2.5 bg-terracotta hover:bg-terracotta-dark disabled:opacity-40 text-white text-sm font-medium rounded-xl transition-colors"
+              className="flex-1 px-4 py-2.5 bg-[#F97316] hover:bg-[#EA580C] disabled:opacity-40 text-white text-[13px] font-bold rounded-lg transition-colors"
             >
               {editItem ? 'Αποθήκευση' : 'Προσθήκη'}
             </button>

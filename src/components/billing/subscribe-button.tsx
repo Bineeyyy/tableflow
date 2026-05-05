@@ -40,7 +40,7 @@ export function SubscribeButton({ plan, className }: { plan: string; className?:
       onClick={handleClick}
       disabled={loading}
       className={cn(
-        'w-full py-3 rounded-xl text-sm font-semibold transition-all active:scale-95',
+        'w-full py-3 rounded-lg text-[13px] font-bold tracking-tight transition-all active:scale-[0.98]',
         'disabled:opacity-60 disabled:cursor-not-allowed',
         className,
       )}

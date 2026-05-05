@@ -16,8 +16,8 @@ export default async function ReservationsPage() {
         <TopBar title="Κρατήσεις" subtitle="Διαχείριση κρατήσεων τραπεζιών" />
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="text-center space-y-3">
-            <CalendarDays size={48} className="mx-auto text-stone-300" />
-            <p className="text-stone-600 font-medium">Δεν έχετε δημιουργήσει εστιατόριο</p>
+            <CalendarDays size={48} className="mx-auto text-[#D1D5DB]" />
+            <p className="text-[#0A0A0A] font-bold tracking-tight">Δεν έχετε δημιουργήσει εστιατόριο</p>
           </div>
         </div>
       </>

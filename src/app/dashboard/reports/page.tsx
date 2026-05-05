@@ -49,10 +49,10 @@ export default function ReportsPage() {
             { key: 'month', label: 'Μήνας' },
           ] as { key: Period; label: string }[]).map(p => (
             <button key={p.key} onClick={() => setPeriod(p.key)}
-              className={cn('px-4 py-2 rounded-xl text-sm font-medium transition-all',
+              className={cn('px-4 py-2 rounded-lg text-[13px] font-bold transition-all',
                 period === p.key
-                  ? 'bg-terracotta text-white shadow-sm'
-                  : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-50')}>
+                  ? 'bg-[#0A0A0A] text-white'
+                  : 'bg-white text-[#0A0A0A] border border-[#E5E7EB] hover:bg-[#F8F8F8]')}>
               {p.label}
             </button>
           ))}
@@ -60,18 +60,18 @@ export default function ReportsPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard title="Τζίρος" value={formatCurrency(totalRevenue * multiplier)} subtitle="συνολικά έσοδα" icon={TrendingUp} iconColor="text-terracotta" trend={{ value: 15, label: 'vs προηγ.' }} />
-          <StatCard title="Επισκέπτες" value={totalGuests * multiplier} subtitle="εξυπηρετηθέντες" icon={Users} iconColor="text-sky-500" trend={{ value: 8, label: 'vs προηγ.' }} />
-          <StatCard title="Τραπέζια" value={`${occupied}/${mockTables.length}`} subtitle="μέσος όρος πληρότητας" icon={UtensilsCrossed} iconColor="text-amber-500" />
-          <StatCard title="Μέσο ποσό" value={formatCurrency(totalRevenue / Math.max(mockOrders.length, 1))} subtitle="ανά τραπέζι" icon={Clock} iconColor="text-emerald-600" />
+          <StatCard title="Τζίρος" value={formatCurrency(totalRevenue * multiplier)} subtitle="συνολικά έσοδα" icon={TrendingUp} trend={{ value: 15, label: 'vs προηγ.' }} />
+          <StatCard title="Επισκέπτες" value={totalGuests * multiplier} subtitle="εξυπηρετηθέντες" icon={Users} trend={{ value: 8, label: 'vs προηγ.' }} />
+          <StatCard title="Τραπέζια" value={`${occupied}/${mockTables.length}`} subtitle="μέσος όρος πληρότητας" icon={UtensilsCrossed} />
+          <StatCard title="Μέσο ποσό" value={formatCurrency(totalRevenue / Math.max(mockOrders.length, 1))} subtitle="ανά τραπέζι" icon={Clock} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Revenue bar chart */}
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-stone-100 shadow-sm p-6">
+          <div className="lg:col-span-2 bg-white rounded-lg border border-[#E5E7EB] shadow-card p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-semibold text-stone-800">Έσοδα ανά ημέρα</h3>
-              <span className="text-xs text-stone-400 bg-stone-100 px-3 py-1 rounded-full">Τελευταίες 7 ημέρες</span>
+              <h3 className="font-bold text-[#0A0A0A] tracking-tight">Έσοδα ανά ημέρα</h3>
+              <span className="text-[10px] font-bold text-[#6B7280] bg-[#F8F8F8] border border-[#E5E7EB] px-3 py-1 rounded-md uppercase tracking-wider">Τελευταίες 7 ημέρες</span>
             </div>
             <div className="flex items-end gap-3 h-44">
               {weekData.map((d, i) => {
@@ -81,40 +81,40 @@ export default function ReportsPage() {
                   <div key={d.day} className="flex-1 flex flex-col items-center gap-2 group">
                     <div className="relative w-full flex items-end justify-center" style={{ height: 160 }}>
                       <div
-                        className={cn('w-full rounded-t-lg transition-all duration-300 cursor-pointer group-hover:opacity-90', isToday ? 'bg-terracotta' : 'bg-terracotta/30 hover:bg-terracotta/50')}
+                        className={cn('w-full rounded-t-md transition-all duration-300 cursor-pointer', isToday ? 'bg-[#F97316]' : 'bg-[#0A0A0A] hover:bg-[#262626]')}
                         style={{ height }}
                       />
-                      <div className="absolute -top-7 left-1/2 -translate-x-1/2 hidden group-hover:block bg-stone-900 text-white text-xs px-2 py-1 rounded-lg whitespace-nowrap z-10">
+                      <div className="absolute -top-7 left-1/2 -translate-x-1/2 hidden group-hover:block bg-[#0A0A0A] text-white text-[11px] font-bold px-2 py-1 rounded-md whitespace-nowrap z-10 tabular-nums">
                         {formatCurrency(d.revenue)}
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className={cn('text-xs font-medium', isToday ? 'text-terracotta' : 'text-stone-400')}>{d.day}</div>
+                      <div className={cn('text-[11px] font-bold uppercase tracking-wider', isToday ? 'text-[#F97316]' : 'text-[#6B7280]')}>{d.day}</div>
                     </div>
                   </div>
                 );
               })}
             </div>
-            <div className="mt-4 pt-4 border-t border-stone-100 flex items-center justify-between text-xs text-stone-400">
-              <span>Σύνολο εβδομάδας: <strong className="text-stone-700">{formatCurrency(weekData.reduce((s, d) => s + d.revenue, 0))}</strong></span>
-              <span>Καλύτερη μέρα: <strong className="text-terracotta">Σάββατο</strong></span>
+            <div className="mt-4 pt-4 border-t border-[#E5E7EB] flex items-center justify-between text-[12px] text-[#6B7280]">
+              <span>Σύνολο εβδομάδας: <strong className="text-[#0A0A0A] font-bold tabular-nums">{formatCurrency(weekData.reduce((s, d) => s + d.revenue, 0))}</strong></span>
+              <span>Καλύτερη μέρα: <strong className="text-[#F97316] font-bold">Σάββατο</strong></span>
             </div>
           </div>
 
           {/* Busiest hours */}
-          <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-6">
-            <h3 className="font-semibold text-stone-800 mb-5">Πιο Πολυάσχολες Ώρες</h3>
+          <div className="bg-white rounded-lg border border-[#E5E7EB] shadow-card p-6">
+            <h3 className="font-bold text-[#0A0A0A] tracking-tight mb-5">Πιο Πολυάσχολες Ώρες</h3>
             <div className="space-y-2.5">
               {hourlyData.map(h => (
                 <div key={h.hour} className="flex items-center gap-3">
-                  <span className="text-xs text-stone-400 w-12 flex-shrink-0">{h.hour}</span>
-                  <div className="flex-1 h-2 bg-stone-100 rounded-full overflow-hidden">
+                  <span className="text-[11px] font-semibold text-[#6B7280] w-12 flex-shrink-0 tabular-nums">{h.hour}</span>
+                  <div className="flex-1 h-2 bg-[#F8F8F8] rounded-full overflow-hidden">
                     <div
-                      className={cn('h-full rounded-full transition-all duration-500', h.pct >= 80 ? 'bg-terracotta' : h.pct >= 50 ? 'bg-terracotta/60' : 'bg-terracotta/30')}
+                      className={cn('h-full rounded-full transition-all duration-500', h.pct >= 80 ? 'bg-[#F97316]' : h.pct >= 50 ? 'bg-[#FB923C]' : 'bg-[#0A0A0A]')}
                       style={{ width: `${h.pct}%` }}
                     />
                   </div>
-                  <span className="text-xs text-stone-400 w-8 text-right">{h.pct}%</span>
+                  <span className="text-[11px] font-bold text-[#0A0A0A] w-8 text-right tabular-nums">{h.pct}%</span>
                 </div>
               ))}
             </div>
@@ -122,30 +122,30 @@ export default function ReportsPage() {
         </div>
 
         {/* Table utilization */}
-        <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-6">
-          <h3 className="font-semibold text-stone-800 mb-5">Πληρότητα Τραπεζιών</h3>
+        <div className="bg-white rounded-lg border border-[#E5E7EB] shadow-card p-6">
+          <h3 className="font-bold text-[#0A0A0A] tracking-tight mb-5">Πληρότητα Τραπεζιών</h3>
           <div className="grid grid-cols-4 sm:grid-cols-7 lg:grid-cols-13 gap-3">
             {mockTables.map(table => {
               const utilPct = Math.floor(Math.random() * 60 + 30);
               return (
                 <div key={table.id} className="flex flex-col items-center gap-1.5 group cursor-pointer">
-                  <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-stone-100">
+                  <div className="relative w-full aspect-square rounded-md overflow-hidden bg-[#F8F8F8] border border-[#E5E7EB]">
                     <div
-                      className="absolute bottom-0 left-0 right-0 bg-terracotta/70 transition-all"
+                      className="absolute bottom-0 left-0 right-0 bg-[#F97316] transition-all"
                       style={{ height: `${utilPct}%` }}
                     />
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-xs font-bold text-stone-700 mix-blend-multiply">#{table.number}</span>
+                      <span className="text-[11px] font-bold text-[#0A0A0A] mix-blend-multiply">#{table.number}</span>
                     </div>
                   </div>
-                  <span className="text-[10px] text-stone-400">{utilPct}%</span>
+                  <span className="text-[10px] font-bold text-[#6B7280] tabular-nums">{utilPct}%</span>
                 </div>
               );
             })}
           </div>
-          <div className="flex items-center gap-4 mt-4 pt-4 border-t border-stone-100">
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-terracotta/70" /><span className="text-xs text-stone-500">Πληρότητα</span></div>
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-stone-100" /><span className="text-xs text-stone-500">Αδρανές</span></div>
+          <div className="flex items-center gap-4 mt-4 pt-4 border-t border-[#E5E7EB]">
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-[#F97316]" /><span className="text-[12px] font-medium text-[#6B7280]">Πληρότητα</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-[#F8F8F8] border border-[#E5E7EB]" /><span className="text-[12px] font-medium text-[#6B7280]">Αδρανές</span></div>
           </div>
         </div>
       </div>

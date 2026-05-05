@@ -35,8 +35,13 @@ export async function login(_: unknown, formData: FormData) {
   const rememberMe = formData.get('rememberMe') === 'on'
 
   // Admin bypass: skip password for the owner account.
-  // Activate by setting ADMIN_EMAIL env var in Vercel — password field is ignored.
-  if (process.env.ADMIN_EMAIL && email === process.env.ADMIN_EMAIL) {
+  // Requires both ADMIN_EMAIL and SUPABASE_SERVICE_ROLE_KEY to be set in Vercel.
+  // If either is missing, falls through to normal login.
+  if (
+    process.env.ADMIN_EMAIL &&
+    process.env.SUPABASE_SERVICE_ROLE_KEY &&
+    email === process.env.ADMIN_EMAIL
+  ) {
     try {
       const admin = createAdminClient()
       const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({

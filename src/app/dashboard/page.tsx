@@ -19,9 +19,9 @@ export default async function DashboardPage() {
         <TopBar title="Κάτοψη Εστιατορίου" subtitle="Διαχείριση τραπεζιών σε πραγματικό χρόνο" />
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="text-center space-y-3">
-            <UtensilsCrossed size={48} className="mx-auto text-stone-300" />
-            <p className="text-stone-600 font-medium text-lg">Δεν έχετε δημιουργήσει εστιατόριο</p>
-            <p className="text-stone-400 text-sm">Μεταβείτε στις Ρυθμίσεις για να προσθέσετε το εστιατόριό σας.</p>
+            <UtensilsCrossed size={48} className="mx-auto text-[#D1D5DB]" />
+            <p className="text-[#0A0A0A] font-bold text-lg tracking-tight">Δεν έχετε δημιουργήσει εστιατόριο</p>
+            <p className="text-[#6B7280] text-sm">Μεταβείτε στις Ρυθμίσεις για να προσθέσετε το εστιατόριό σας.</p>
           </div>
         </div>
       </>
@@ -87,7 +87,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Floor Plan */}
-        <div className="bg-stone-50 rounded-2xl p-4 border border-stone-200 flex-1" style={{ minHeight: '520px' }}>
+        <div className="bg-white rounded-lg p-4 border border-[#E5E7EB] shadow-card flex-1" style={{ minHeight: '520px' }}>
           <FloorPlan
             initialTables={tables}
             restaurantId={restaurant.id}

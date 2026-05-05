@@ -25,11 +25,11 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-stone-950/50 backdrop-blur-sm" onClick={onClose} />
-      <div className={cn('relative w-full bg-white rounded-2xl shadow-2xl overflow-hidden', widths[size])}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100">
-          <h3 className="text-lg font-bold text-stone-900">{title}</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-600 transition-colors">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className={cn('relative w-full bg-white rounded-lg shadow-pop overflow-hidden border border-[#E5E7EB]', widths[size])}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB]">
+          <h3 className="text-[16px] font-bold text-[#0A0A0A] tracking-tight">{title}</h3>
+          <button onClick={onClose} className="p-1.5 rounded-md hover:bg-[#F8F8F8] text-[#6B7280] hover:text-[#0A0A0A] transition-colors">
             <X size={18} />
           </button>
         </div>
