@@ -104,6 +104,85 @@ button, a, input, select, textarea, [role="button"], [data-interactive] {
     0 0 0 1px rgba(249, 115, 22, 0.12);
 }
 
+/* ─── Pro plan card — animated border + breathing glow ─────────────────────
+   Uses a registered <angle> custom property so the conic-gradient angle is
+   smoothly animatable. The dual-background trick (padding-box white over
+   border-box conic) paints only the 2px border with a flowing gradient. */
+@property --pro-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.pro-card {
+  position: relative;
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    conic-gradient(from var(--pro-angle), #FB923C, #F97316, #FED7AA, #EA580C, #F97316, #FB923C) border-box;
+  border: 2px solid transparent;
+  animation: pro-rotate 4s linear infinite, pro-breathe 3.4s ease-in-out infinite;
+}
+
+@keyframes pro-rotate {
+  to { --pro-angle: 360deg; }
+}
+
+@keyframes pro-breathe {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(249, 115, 22, 0.10),
+      0 8px 28px rgba(249, 115, 22, 0.22),
+      0 0 60px rgba(249, 115, 22, 0.14);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(249, 115, 22, 0.20),
+      0 12px 40px rgba(249, 115, 22, 0.38),
+      0 0 100px rgba(249, 115, 22, 0.26);
+  }
+}
+
+/* Shimmering "Upgrade" button — periodic light sweep across the surface */
+.shimmer-cta {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.shimmer-cta::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 70%
+  );
+  transform: translateX(-120%);
+  animation: shimmer-sweep 3.2s ease-in-out infinite;
+  animation-delay: 1.2s;
+  pointer-events: none;
+}
+@keyframes shimmer-sweep {
+  0%   { transform: translateX(-120%); }
+  60%  { transform: translateX(120%); }
+  100% { transform: translateX(120%); }
+}
+
+/* "ΔΗΜΟΦΙΛΕΣ" floating ribbon — tiny lift on hover for the parent */
+.popular-ribbon {
+  background: linear-gradient(135deg, #FB923C 0%, #F97316 50%, #EA580C 100%);
+  box-shadow:
+    0 4px 14px rgba(249, 115, 22, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.30);
+}
+
+/* Respect users who prefer reduced motion — kill the animations gracefully */
+@media (prefers-reduced-motion: reduce) {
+  .pro-card { animation: none; }
+  .shimmer-cta::after { animation: none; opacity: 0; }
+}
+
 /* Ring utility used in table selection */
 .ring-3 {
   --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 3px var(--tw-ring-color);

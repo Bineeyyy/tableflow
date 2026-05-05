@@ -1,10 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { Zap, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export function SubscribeButton({ plan, className }: { plan: string; className?: string }) {
+interface Props {
+  plan: string;
+  className?: string;
+  style?: CSSProperties;
+}
+
+export function SubscribeButton({ plan, className, style }: Props) {
   const [loading, setLoading] = useState(false);
 
   async function handleClick() {
@@ -35,26 +41,37 @@ export function SubscribeButton({ plan, className }: { plan: string; className?:
     }
   }
 
+  // Default visual treatment — orange gradient + glow. Caller can override
+  // the entire look by passing className/style; base only handles layout +
+  // disabled state so utilities don't conflict.
+  const defaultStyle: CSSProperties = {
+    background: 'linear-gradient(135deg, #FB923C 0%, #F97316 50%, #EA580C 100%)',
+  };
+
   return (
     <button
       onClick={handleClick}
       disabled={loading}
+      style={{ ...defaultStyle, ...style }}
       className={cn(
-        'w-full py-3 rounded-lg text-[13px] font-bold tracking-tight transition-all active:scale-[0.98]',
+        'w-full flex items-center justify-center gap-2 font-extrabold tracking-tight',
+        'transition-transform duration-150 active:scale-[0.98]',
         'disabled:opacity-60 disabled:cursor-not-allowed',
+        // Sensible defaults — can be overridden by className
+        'py-3 rounded-lg text-[13px]',
         className,
       )}
     >
       {loading ? (
-        <span className="flex items-center justify-center gap-2">
+        <>
           <Loader2 size={15} className="animate-spin" />
           Ανακατεύθυνση...
-        </span>
+        </>
       ) : (
-        <span className="flex items-center justify-center gap-2">
-          <Zap size={15} />
+        <>
+          <Zap size={16} strokeWidth={2.6} fill="currentColor" />
           Αναβάθμιση σε Pro
-        </span>
+        </>
       )}
     </button>
   );

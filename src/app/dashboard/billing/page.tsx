@@ -260,76 +260,148 @@ export default async function BillingPage({
           </div>
         )}
 
-        {/* Plan cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl">
-          {(Object.entries(PLAN_META) as [string, typeof PLAN_META.free & { badge?: string }][]).map(([key, meta]) => {
-            const isCurrent = currentPlan === key;
-            const { Icon } = meta;
+        {/* ─── Plan headline + cards ──────────────────────────────────────── */}
+        <div className="max-w-[800px] mx-auto pt-2 md:pt-6 w-full">
+          <div className="text-center mb-8 md:mb-10">
+            <h2 className="text-[28px] md:text-[36px] font-extrabold text-[#0A0A0A] tracking-tight leading-tight">
+              Επιλέξτε το πλάνο σας
+            </h2>
+            <p className="text-[14px] md:text-[15px] text-[#6B7280] mt-2">
+              Ξεκινήστε δωρεάν ή ξεκλειδώστε όλες τις δυνατότητες με Pro.
+            </p>
+          </div>
 
-            return (
-              <div
-                key={key}
-                className={cn(
-                  'relative bg-white rounded-lg border-2 overflow-hidden flex flex-col shadow-card',
-                  meta.color,
-                  isCurrent && 'ring-2 ring-[#F97316]/30',
-                )}
-              >
-                {'badge' in meta && meta.badge && (
-                  <div className="absolute top-4 right-4 bg-[#F97316] text-white text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wide">
-                    {meta.badge}
-                  </div>
-                )}
-
-                <div className={cn('p-6', meta.headerBg)}>
-                  <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center mb-4', meta.iconBg)}>
-                    <Icon size={20} strokeWidth={2.2} />
-                  </div>
-                  <h3 className={cn('text-xl font-bold tracking-tight', meta.headerText)}>{meta.name}</h3>
-                  <div className="flex items-baseline gap-1 mt-2">
-                    <span className={cn('text-[40px] font-extrabold tracking-tight leading-none', meta.headerText)}>
-                      {key === 'pro' ? proPrice.amount : meta.price}
-                    </span>
-                    <span className={cn('text-[13px] font-medium', meta.subText)}>
-                      {key === 'pro' ? proPrice.interval : meta.period}
-                    </span>
-                  </div>
-                  <p className={cn('text-[13px] mt-3', meta.subText)}>{meta.description}</p>
-                </div>
-
-                <div className="p-6 flex-1 space-y-3 border-t border-[#E5E7EB]">
-                  {meta.features.map((f, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      {f.ok
-                        ? <Check size={16} className="text-[#10B981] flex-shrink-0" strokeWidth={2.6} />
-                        : <X size={16} className="text-[#D1D5DB] flex-shrink-0" />}
-                      <span className={cn('text-[13px]', f.ok ? 'text-[#0A0A0A] font-medium' : 'text-[#9CA3AF]')}>
-                        {f.label}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 items-stretch">
+            {/* ─── FREE — visually demoted ─────────────────────────────── */}
+            {(() => {
+              const free = PLAN_META.free;
+              const FreeIcon = free.Icon;
+              const isCurrent = currentPlan === 'free';
+              return (
+                <div className="relative bg-white rounded-2xl border border-[#E5E7EB] flex flex-col opacity-80 hover:opacity-100 transition-opacity">
+                  <div className="p-7 md:p-8">
+                    <div className="w-11 h-11 rounded-lg bg-[#F8F8F8] border border-[#E5E7EB] flex items-center justify-center mb-5">
+                      <FreeIcon size={20} className="text-[#9CA3AF]" strokeWidth={2.2} />
+                    </div>
+                    <h3 className="text-[20px] font-bold tracking-tight text-[#6B7280]">{free.name}</h3>
+                    <div className="flex items-baseline gap-1 mt-3">
+                      <span className="text-[44px] md:text-[52px] font-extrabold tracking-tight leading-none text-[#9CA3AF]">
+                        {free.price}
                       </span>
+                      <span className="text-[13px] font-medium text-[#9CA3AF]">{free.period}</span>
                     </div>
-                  ))}
-                </div>
+                    <p className="text-[13px] mt-3 text-[#9CA3AF]">{free.description}</p>
+                  </div>
 
-                <div className="px-6 pb-6">
-                  {isCurrent ? (
-                    <div className="w-full py-3 rounded-lg text-[13px] font-bold bg-[#F8F8F8] text-[#6B7280] flex items-center justify-center gap-2 border border-[#E5E7EB]">
-                      <Check size={15} strokeWidth={2.6} />
-                      Τρέχον Πλάνο
-                    </div>
-                  ) : key === 'pro' && currentPlan === 'free' ? (
-                    <SubscribeButton
-                      plan="pro"
-                      className="bg-[#F97316] hover:bg-[#EA580C] text-white"
-                    />
-                  ) : (
-                    <div className="w-full py-3 rounded-lg text-[13px] font-semibold bg-[#F8F8F8] text-[#9CA3AF] flex items-center justify-center border border-[#E5E7EB]">
-                      Μη διαθέσιμο
-                    </div>
-                  )}
+                  <div className="px-7 md:px-8 py-5 flex-1 space-y-2.5 border-t border-[#E5E7EB]">
+                    {free.features.map((f, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        {f.ok
+                          ? <Check size={15} className="text-[#9CA3AF] flex-shrink-0" strokeWidth={2.4} />
+                          : <X size={15} className="text-[#D1D5DB] flex-shrink-0" />}
+                        <span className={cn('text-[13px]', f.ok ? 'text-[#6B7280]' : 'text-[#D1D5DB] line-through')}>
+                          {f.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="px-7 md:px-8 pb-7 md:pb-8">
+                    {isCurrent ? (
+                      <div className="w-full py-3.5 rounded-lg text-[13px] font-bold bg-[#F8F8F8] text-[#6B7280] flex items-center justify-center gap-2 border border-[#E5E7EB]">
+                        <Check size={15} strokeWidth={2.6} />
+                        Τρέχον Πλάνο
+                      </div>
+                    ) : (
+                      <div className="w-full py-3.5 rounded-lg text-[13px] font-semibold bg-[#F8F8F8] text-[#9CA3AF] flex items-center justify-center border border-[#E5E7EB]">
+                        Δωρεάν πλάνο
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })()}
+
+            {/* ─── PRO — animated, glowing, irresistible ───────────────── */}
+            {(() => {
+              const pro = PLAN_META.pro;
+              const ProIcon = pro.Icon;
+              const isCurrent = currentPlan === 'pro';
+              return (
+                <div className="relative">
+                  {/* Floating ΔΗΜΟΦΙΛΕΣ ribbon */}
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-20">
+                    <div className="popular-ribbon text-white text-[11px] md:text-[12px] font-extrabold uppercase tracking-[0.18em] px-4 py-1.5 rounded-full whitespace-nowrap">
+                      ΔΗΜΟΦΙΛΕΣ
+                    </div>
+                  </div>
+
+                  {/* Animated-border + breathing-glow card */}
+                  <div className="pro-card rounded-2xl flex flex-col h-full">
+                    <div className="p-7 md:p-8 pt-9 md:pt-10 bg-gradient-to-b from-[#FFF7ED] to-white rounded-t-[14px]">
+                      <div
+                        className="w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center mb-5"
+                        style={{
+                          background: 'linear-gradient(135deg, #FB923C 0%, #F97316 50%, #EA580C 100%)',
+                          boxShadow: '0 8px 20px rgba(249, 115, 22, 0.35), inset 0 1px 0 rgba(255,255,255,0.30)',
+                        }}
+                      >
+                        <ProIcon size={24} className="text-white" strokeWidth={2.4} />
+                      </div>
+                      <h3 className="text-[24px] md:text-[26px] font-extrabold tracking-tight text-[#0A0A0A]">{pro.name}</h3>
+                      <div className="flex items-baseline gap-1.5 mt-3">
+                        <span
+                          className="text-[64px] md:text-[80px] font-extrabold tracking-tight leading-none"
+                          style={{
+                            background: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            backgroundClip: 'text',
+                          }}
+                        >
+                          {proPrice.amount}
+                        </span>
+                        <span className="text-[14px] md:text-[15px] font-bold text-[#6B7280]">{proPrice.interval}</span>
+                      </div>
+                      <p className="text-[14px] md:text-[15px] mt-3 text-[#0A0A0A] font-medium">{pro.description}</p>
+                    </div>
+
+                    <div className="px-7 md:px-8 py-6 flex-1 space-y-3 border-t border-[#F97316]/10">
+                      {pro.features.map((f, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                          {f.ok
+                            ? (
+                              <span className="w-5 h-5 rounded-full bg-[#10B981]/10 flex items-center justify-center flex-shrink-0">
+                                <Check size={13} className="text-[#10B981]" strokeWidth={3} />
+                              </span>
+                            )
+                            : <X size={16} className="text-[#D1D5DB] flex-shrink-0" />}
+                          <span className={cn('text-[14px]', f.ok ? 'text-[#0A0A0A] font-semibold' : 'text-[#9CA3AF]')}>
+                            {f.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="px-7 md:px-8 pb-7 md:pb-8">
+                      {isCurrent ? (
+                        <div className="w-full py-4 rounded-xl text-[14px] font-bold bg-[#10B981]/10 text-[#047857] flex items-center justify-center gap-2 ring-1 ring-inset ring-[#10B981]/20">
+                          <Check size={16} strokeWidth={2.8} />
+                          Είστε σε Pro
+                        </div>
+                      ) : (
+                        <SubscribeButton
+                          plan="pro"
+                          className="shimmer-cta py-4 text-[14px] md:text-[15px] tracking-tight rounded-xl text-white shadow-orange-glow"
+                          /* gradient bg lives in the className passed downstream — see SubscribeButton wrapper */
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
         </div>
 
         {/* Payment info */}
