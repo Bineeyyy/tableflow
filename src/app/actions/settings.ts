@@ -2,6 +2,9 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { cookies } from 'next/headers'
+
+const RESTAURANT_COOKIE = 'tf_restaurant_id'
 
 type DayHours = { open: boolean; from: string; to: string }
 
@@ -17,13 +20,36 @@ export async function saveRestaurantSettings(data: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Μη εξουσιοδοτημένος' }
 
-  const { data: restaurant } = await supabase
-    .from('restaurants')
-    .select('id')
-    .eq('owner_id', user.id)
-    .maybeSingle()
+  // Pin the operation to the cookie's restaurant when present, so a user with
+  // multiple restaurants edits the same one the dashboard is showing. Fall back
+  // to the oldest owned restaurant otherwise. Never use .maybeSingle() across
+  // an unfiltered owner_id query — it errors when more than one row exists.
+  const cookieStore = await cookies()
+  const cookieId = cookieStore.get(RESTAURANT_COOKIE)?.value
 
-  if (!restaurant) return { error: 'Δεν βρέθηκε εστιατόριο' }
+  let restaurantId: string | null = null
+  if (cookieId) {
+    const { data: byCookie } = await supabase
+      .from('restaurants')
+      .select('id')
+      .eq('id', cookieId)
+      .eq('owner_id', user.id)
+      .maybeSingle()
+    if (byCookie) restaurantId = byCookie.id
+  }
+  if (!restaurantId) {
+    const { data: oldest } = await supabase
+      .from('restaurants')
+      .select('id')
+      .eq('owner_id', user.id)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+    restaurantId = oldest?.id ?? null
+  }
+
+  if (!restaurantId) return { error: 'Δεν βρέθηκε εστιατόριο' }
+  const restaurant = { id: restaurantId }
 
   const { error: updateError } = await supabase
     .from('restaurants')

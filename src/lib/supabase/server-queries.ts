@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers';
 import { createClient } from './server';
 import type { Table, Reservation as AppReservation } from '@/types';
 import type { Tables } from '@/types/database.types';
@@ -5,6 +6,8 @@ import type { Tables } from '@/types/database.types';
 type DbTable = Tables<'restaurant_tables'>;
 type DbReservation = Tables<'reservations'>;
 type DbOrder = Tables<'orders'>;
+
+const RESTAURANT_COOKIE = 'tf_restaurant_id';
 
 function mapTable(t: DbTable): Table {
   return {
@@ -39,6 +42,21 @@ export async function getMyRestaurant() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
+
+  // Prefer the restaurant pinned by the proxy cookie so the dashboard, settings,
+  // and proxy stay consistent when a user has multiple restaurants.
+  const cookieStore = await cookies();
+  const cookieId = cookieStore.get(RESTAURANT_COOKIE)?.value;
+
+  if (cookieId) {
+    const { data } = await supabase
+      .from('restaurants')
+      .select('*')
+      .eq('id', cookieId)
+      .eq('owner_id', user.id)
+      .maybeSingle();
+    if (data) return data;
+  }
 
   const { data } = await supabase
     .from('restaurants')

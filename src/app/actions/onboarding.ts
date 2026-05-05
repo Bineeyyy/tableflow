@@ -58,7 +58,10 @@ export async function createRestaurant(_: unknown, formData: FormData) {
     pos_y: 80 + Math.floor(i / COLS) * 140,
   }))
 
-  await supabase.from('restaurant_tables').insert(tables)
+  const { error: tablesError } = await supabase.from('restaurant_tables').insert(tables)
+  if (tablesError) {
+    return { error: 'Σφάλμα κατά τη δημιουργία τραπεζιών. Δοκιμάστε ξανά.' }
+  }
 
   // Cache restaurant ID for the proxy's optimistic check
   const cookieStore = await cookies()
