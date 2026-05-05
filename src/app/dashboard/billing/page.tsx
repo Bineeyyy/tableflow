@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { stripe } from '@/lib/stripe';
 import { cookies } from 'next/headers';
 import {
-  Check, X, Zap, Building2, Star,
+  Check, X, Zap, Star,
   CreditCard, Shield, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -81,28 +81,6 @@ const PLAN_META = {
       { label: 'Αναφορές & στατιστικά', ok: true },
       { label: 'Ειδοποιήσεις SMS', ok: true },
       { label: 'Εξαγωγή δεδομένων', ok: false },
-    ],
-  },
-  enterprise: {
-    name: 'Enterprise',
-    price: '79€',
-    period: '/μήνα',
-    description: 'Για αλυσίδες και μεγάλες επιχειρήσεις εστίασης',
-    Icon: Building2,
-    color: 'border-[#E5E7EB]',
-    headerBg: 'bg-white',
-    headerText: 'text-[#0A0A0A]',
-    subText: 'text-[#6B7280]',
-    iconBg: 'bg-[#0A0A0A] text-white',
-    features: [
-      { label: 'Απεριόριστα τραπέζια', ok: true },
-      { label: 'Πολλαπλά εστιατόρια', ok: true },
-      { label: 'Απεριόριστοι χρήστες', ok: true },
-      { label: 'Παραγγελίες & Μενού', ok: true },
-      { label: 'Κρατήσεις + API', ok: true },
-      { label: 'Αναφορές & dashboard', ok: true },
-      { label: 'Ειδοποιήσεις SMS & email', ok: true },
-      { label: 'White-label & προσαρμογή', ok: true },
     ],
   },
 };
@@ -283,7 +261,7 @@ export default async function BillingPage({
         )}
 
         {/* Plan cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl">
           {(Object.entries(PLAN_META) as [string, typeof PLAN_META.free & { badge?: string }][]).map(([key, meta]) => {
             const isCurrent = currentPlan === key;
             const { Icon } = meta;
@@ -343,10 +321,6 @@ export default async function BillingPage({
                       plan="pro"
                       className="bg-[#F97316] hover:bg-[#EA580C] text-white"
                     />
-                  ) : key === 'enterprise' ? (
-                    <button className="w-full py-3 rounded-lg text-[13px] font-bold bg-[#0A0A0A] hover:bg-black text-white transition-all active:scale-[0.98]">
-                      Επικοινωνήστε μαζί μας
-                    </button>
                   ) : (
                     <div className="w-full py-3 rounded-lg text-[13px] font-semibold bg-[#F8F8F8] text-[#9CA3AF] flex items-center justify-center border border-[#E5E7EB]">
                       Μη διαθέσιμο
