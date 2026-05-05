@@ -40,7 +40,6 @@ export default async function DashboardPage() {
 
   const occupied  = tables.filter(t => t.status === 'occupied').length;
   const available = tables.filter(t => t.status === 'available').length;
-  const reserved  = tables.filter(t => t.status === 'reserved').length;
 
   const totalGuests  = openOrders.reduce((sum, o) => sum + o.guests, 0);
   const totalRevenue = openOrders.reduce((sum, o) => sum + Number(o.total), 0);
@@ -56,34 +55,10 @@ export default async function DashboardPage() {
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {/* Stats Row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Κατειλημμένα"
-            value={`${occupied}/${tables.length}`}
-            subtitle="τραπέζια σε χρήση"
-            icon={UtensilsCrossed}
-            iconColor="text-red-500"
-          />
-          <StatCard
-            title="Διαθέσιμα"
-            value={available}
-            subtitle="τραπέζια ελεύθερα"
-            icon={Clock}
-            iconColor="text-emerald-500"
-          />
-          <StatCard
-            title="Επισκέπτες"
-            value={totalGuests}
-            subtitle="άτομα αυτή τη στιγμή"
-            icon={Users}
-            iconColor="text-sky-500"
-          />
-          <StatCard
-            title="Τζίρος Σήμερα"
-            value={formatCurrency(totalRevenue)}
-            subtitle={`${pendingReservations} κρατήσεις σήμερα`}
-            icon={TrendingUp}
-            iconColor="text-terracotta"
-          />
+          <StatCard title="Κατειλημμένα" value={`${occupied}/${tables.length}`} subtitle="τραπέζια σε χρήση" icon={UtensilsCrossed} />
+          <StatCard title="Διαθέσιμα" value={available} subtitle="τραπέζια ελεύθερα" icon={Clock} />
+          <StatCard title="Επισκέπτες" value={totalGuests} subtitle="άτομα αυτή τη στιγμή" icon={Users} />
+          <StatCard title="Τζίρος Σήμερα" value={formatCurrency(totalRevenue)} subtitle={`${pendingReservations} κρατήσεις σήμερα`} icon={TrendingUp} />
         </div>
 
         {/* Floor Plan */}

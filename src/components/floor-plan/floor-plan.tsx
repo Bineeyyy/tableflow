@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Table, TableStatus, Reservation } from '@/types';
 import { TableNode } from './table-node';
 import { TableDetailPanel } from './table-detail-panel';
@@ -25,11 +25,11 @@ export function FloorPlan({ initialTables, todayReservations }: FloorPlanProps) 
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [zoom, setZoom] = useState(1);
 
-  const handleTableClick = (table: Table) => {
+  const handleTableClick = useCallback((table: Table) => {
     setSelectedTable(prev => prev?.id === table.id ? null : table);
-  };
+  }, []);
 
-  const handleStatusChange = async (tableId: string, newStatus: TableStatus) => {
+  const handleStatusChange = useCallback(async (tableId: string, newStatus: TableStatus) => {
     setTables(prev => prev.map(t => t.id === tableId ? { ...t, status: newStatus } : t));
     setSelectedTable(prev => prev?.id === tableId ? { ...prev, status: newStatus } : prev);
     try {
@@ -37,17 +37,29 @@ export function FloorPlan({ initialTables, todayReservations }: FloorPlanProps) 
     } catch (err) {
       console.error('Failed to update table status:', err);
     }
-  };
+  }, []);
 
-  const stats = {
+  const closePanel = useCallback(() => setSelectedTable(null), []);
+  const resetZoom = useCallback(() => setZoom(1), []);
+  const zoomOut = useCallback(() => setZoom(z => Math.max(0.6, z - 0.1)), []);
+  const zoomIn = useCallback(() => setZoom(z => Math.min(1.8, z + 0.1)), []);
+
+  const stats = useMemo(() => ({
     available: tables.filter(t => t.status === 'available').length,
     occupied:  tables.filter(t => t.status === 'occupied').length,
     reserved:  tables.filter(t => t.status === 'reserved').length,
     cleaning:  tables.filter(t => t.status === 'cleaning').length,
-  };
+  }), [tables]);
 
-  const todayReservationForTable = (tableId: string) =>
-    todayReservations.find(r => r.table_id === tableId && r.status !== 'cancelled' && r.status !== 'completed');
+  const reservationByTable = useMemo(() => {
+    const map = new Map<string, Reservation>();
+    for (const r of todayReservations) {
+      if (r.table_id && r.status !== 'cancelled' && r.status !== 'completed') {
+        map.set(r.table_id, r);
+      }
+    }
+    return map;
+  }, [todayReservations]);
 
   if (tables.length === 0) {
     return (
@@ -60,7 +72,7 @@ export function FloorPlan({ initialTables, todayReservations }: FloorPlanProps) 
   return (
     <div className="flex gap-4 h-full">
       {/* Floor Plan Canvas */}
-      <div className="flex-1 flex flex-col gap-3">
+      <div className="flex-1 flex flex-col gap-3 min-w-0">
         {/* Toolbar */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -69,39 +81,42 @@ export function FloorPlan({ initialTables, todayReservations }: FloorPlanProps) 
             <span className="text-[12px] text-[#6B7280]">· {tables.length} τραπέζια</span>
           </div>
           <div className="flex items-center gap-1">
-            <button onClick={() => setZoom(1)} className="p-1.5 rounded-md hover:bg-[#F8F8F8] text-[#6B7280] hover:text-[#0A0A0A] transition-colors" title="Επαναφορά ζουμ">
+            <button onClick={resetZoom} className="p-1.5 rounded-md hover:bg-[#F8F8F8] text-[#6B7280] hover:text-[#0A0A0A]" title="Επαναφορά ζουμ">
               <RotateCcw size={14} />
             </button>
-            <button onClick={() => setZoom(z => Math.max(0.6, z - 0.1))} className="p-1.5 rounded-md hover:bg-[#F8F8F8] text-[#6B7280] hover:text-[#0A0A0A] transition-colors">
+            <button onClick={zoomOut} className="p-1.5 rounded-md hover:bg-[#F8F8F8] text-[#6B7280] hover:text-[#0A0A0A]">
               <ZoomOut size={14} />
             </button>
             <span className="text-[11px] font-medium text-[#6B7280] w-10 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
-            <button onClick={() => setZoom(z => Math.min(1.8, z + 0.1))} className="p-1.5 rounded-md hover:bg-[#F8F8F8] text-[#6B7280] hover:text-[#0A0A0A] transition-colors">
+            <button onClick={zoomIn} className="p-1.5 rounded-md hover:bg-[#F8F8F8] text-[#6B7280] hover:text-[#0A0A0A]">
               <ZoomIn size={14} />
             </button>
           </div>
         </div>
 
-        {/* Canvas */}
-        <div className="flex-1 bg-[#FAFAFA] rounded-lg border border-[#E5E7EB] overflow-auto">
+        {/* Canvas — dark */}
+        <div className="flex-1 rounded-lg border border-white/10 overflow-auto" style={{ background: '#0F0F0F' }}>
           <div
             className="relative min-h-full"
             style={{
               width: `${860 * zoom}px`,
               height: `${580 * zoom}px`,
-              backgroundImage: `radial-gradient(circle, #D1D5DB40 1px, transparent 1px)`,
+              backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)`,
               backgroundSize: `${24 * zoom}px ${24 * zoom}px`,
               transform: `scale(${zoom})`,
               transformOrigin: 'top left',
             }}
           >
-            <div className="absolute inset-4 rounded-lg border-2 border-dashed border-[#E5E7EB] bg-white/60" style={{ width: 840, height: 560 }} />
-            <div className="absolute top-8 left-1/2 -translate-x-1/2 text-[10px] text-[#9CA3AF] font-semibold uppercase tracking-[0.18em]">
+            <div
+              className="absolute inset-4 rounded-lg border-2 border-dashed pointer-events-none"
+              style={{ width: 840, height: 560, borderColor: 'rgba(255,255,255,0.08)' }}
+            />
+            <div className="absolute top-8 left-1/2 -translate-x-1/2 text-[10px] font-bold uppercase tracking-[0.18em] pointer-events-none" style={{ color: 'rgba(255,255,255,0.35)' }}>
               Αίθουσα
             </div>
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1">
-              <div className="w-16 h-[3px] bg-[#F97316] rounded-full" />
-              <span className="text-[10px] text-[#F97316] uppercase tracking-[0.18em] font-semibold">Είσοδος</span>
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 pointer-events-none">
+              <div className="w-16 h-[3px] bg-[#F97316] rounded-full" style={{ boxShadow: '0 0 12px rgba(249,115,22,0.5)' }} />
+              <span className="text-[10px] text-[#F97316] uppercase tracking-[0.18em] font-bold">Είσοδος</span>
             </div>
 
             {tables.map(table => (
@@ -116,11 +131,11 @@ export function FloorPlan({ initialTables, todayReservations }: FloorPlanProps) 
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-4 px-1">
+        <div className="flex items-center gap-4 px-1 flex-wrap">
           {LEGEND.map(item => (
             <div key={item.status} className="flex items-center gap-1.5">
-              <div className={`w-2.5 h-2.5 rounded-full ${item.color}`} />
-              <span className="text-[12px] text-[#6B7280] font-medium">{item.label}: <span className="text-[#0A0A0A] font-semibold">{stats[item.status]}</span></span>
+              <span className={`w-2.5 h-2.5 rounded-full ${item.color}`} style={{ boxShadow: `0 0 8px currentColor` }} />
+              <span className="text-[12px] text-[#6B7280] font-medium">{item.label}: <span className="text-[#0A0A0A] font-bold tabular-nums">{stats[item.status]}</span></span>
             </div>
           ))}
         </div>
@@ -130,8 +145,8 @@ export function FloorPlan({ initialTables, todayReservations }: FloorPlanProps) 
       {selectedTable && (
         <TableDetailPanel
           table={selectedTable}
-          reservation={todayReservationForTable(selectedTable.id)}
-          onClose={() => setSelectedTable(null)}
+          reservation={reservationByTable.get(selectedTable.id)}
+          onClose={closePanel}
           onStatusChange={handleStatusChange}
         />
       )}

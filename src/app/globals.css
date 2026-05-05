@@ -65,10 +65,12 @@ body {
   background: #9CA3AF;
 }
 
-/* Subtle global transitions */
-* {
-  transition-property: color, background-color, border-color, box-shadow, transform;
-  transition-duration: 150ms;
+/* Snappy interactive transitions — only on real interactive elements,
+   not the entire DOM (the universal selector was triggering style recalcs
+   on every paint and adding visible delay to hover/focus states). */
+button, a, input, select, textarea, [role="button"], [data-interactive] {
+  transition-property: color, background-color, border-color, box-shadow;
+  transition-duration: 90ms;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 

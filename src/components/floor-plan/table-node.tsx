@@ -1,14 +1,16 @@
 'use client';
 
+import { memo } from 'react';
 import { Table, TableStatus } from '@/types';
 import { getStatusLabel, cn } from '@/lib/utils';
 import { Users } from 'lucide-react';
 
-const STATUS_COLORS: Record<TableStatus, { bg: string; border: string; text: string }> = {
-  available: { bg: 'bg-[#ECFDF5]', border: 'border-[#10B981]', text: 'text-[#047857]' },
-  occupied:  { bg: 'bg-[#FEF2F2]', border: 'border-[#EF4444]', text: 'text-[#B91C1C]' },
-  reserved:  { bg: 'bg-[#FFF4ED]', border: 'border-[#F97316]', text: 'text-[#C2410C]' },
-  cleaning:  { bg: 'bg-[#EFF6FF]', border: 'border-[#3B82F6]', text: 'text-[#1D4ED8]' },
+// On dark canvas: dark fill + bright border + colored glow so tables pop.
+const STATUS_COLORS: Record<TableStatus, { border: string; glow: string; accent: string }> = {
+  available: { border: '#10B981', glow: 'rgba(16,185,129,0.45)',  accent: '#10B981' },
+  occupied:  { border: '#EF4444', glow: 'rgba(239,68,68,0.5)',    accent: '#EF4444' },
+  reserved:  { border: '#F97316', glow: 'rgba(249,115,22,0.55)',  accent: '#F97316' },
+  cleaning:  { border: '#3B82F6', glow: 'rgba(59,130,246,0.45)',  accent: '#3B82F6' },
 };
 
 interface TableNodeProps {
@@ -17,7 +19,7 @@ interface TableNodeProps {
   onClick: (table: Table) => void;
 }
 
-export function TableNode({ table, isSelected, onClick }: TableNodeProps) {
+export const TableNode = memo(function TableNode({ table, isSelected, onClick }: TableNodeProps) {
   const colors = STATUS_COLORS[table.status];
 
   const sizeClass = table.shape === 'rectangle' ? 'w-28 h-16'
@@ -36,40 +38,49 @@ export function TableNode({ table, isSelected, onClick }: TableNodeProps) {
         <div
           className={cn(
             'w-full h-full flex flex-col items-center justify-center gap-0.5',
-            'border-2 transition-all duration-150',
-            colors.bg, colors.border, shapeClass,
-            'shadow-card hover:shadow-card-hover',
-            isSelected && 'ring-3 ring-offset-2 ring-[#F97316] scale-110',
+            'border-2 transition-transform duration-150',
+            shapeClass,
+            isSelected && 'ring-3 ring-offset-2 ring-[#F97316] ring-offset-[#0F0F0F] scale-110',
             !isSelected && 'hover:scale-105',
           )}
+          style={{
+            background: '#1A1A1A',
+            borderColor: colors.border,
+            boxShadow: isSelected
+              ? `0 0 0 1px ${colors.border}, 0 0 24px ${colors.glow}`
+              : `0 0 14px ${colors.glow}, 0 1px 2px rgba(0,0,0,0.4)`,
+          }}
         >
-          <span className="text-[12px] font-bold text-[#0A0A0A] tracking-tight">#{table.number}</span>
+          <span className="text-[12px] font-bold text-white tracking-tight tabular-nums">#{table.number}</span>
           {table.label && (
-            <span className="text-[9px] font-bold text-[#F97316] uppercase tracking-wider">{table.label}</span>
+            <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: colors.accent }}>{table.label}</span>
           )}
           <div className="flex items-center gap-0.5">
-            <Users size={8} className="text-[#6B7280]" />
-            <span className="text-[9px] text-[#6B7280] font-semibold">{table.seats}</span>
+            <Users size={8} className="text-white/50" />
+            <span className="text-[9px] text-white/60 font-semibold tabular-nums">{table.seats}</span>
           </div>
         </div>
 
         {table.status === 'occupied' && (
           <span
-            className="absolute inset-0 animate-ping opacity-20 bg-[#EF4444] pointer-events-none"
-            style={{ borderRadius: shapeClass === 'rounded-full' ? '9999px' : '0.5rem' }}
+            className="absolute inset-0 animate-ping opacity-30 pointer-events-none"
+            style={{
+              background: '#EF4444',
+              borderRadius: shapeClass === 'rounded-full' ? '9999px' : '0.5rem',
+            }}
           />
         )}
       </div>
 
       {/* Hover tooltip */}
       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col items-center z-50 pointer-events-none">
-        <div className="bg-[#0A0A0A] text-white text-[11px] rounded-md px-3 py-2 whitespace-nowrap shadow-pop">
+        <div className="bg-white text-[#0A0A0A] text-[11px] rounded-md px-3 py-2 whitespace-nowrap shadow-pop border border-[#E5E7EB]">
           <div className="font-bold tracking-tight">Τραπέζι {table.number}</div>
-          <div className="text-[10px] text-[#F97316] font-semibold uppercase tracking-wide mt-0.5">{getStatusLabel(table.status)}</div>
-          <div className="text-white/60 text-[10px]">{table.seats} θέσεις</div>
+          <div className="text-[10px] font-bold uppercase tracking-wide mt-0.5" style={{ color: colors.accent }}>{getStatusLabel(table.status)}</div>
+          <div className="text-[#6B7280] text-[10px]">{table.seats} θέσεις</div>
         </div>
-        <div className="border-4 border-transparent border-t-[#0A0A0A]" />
+        <div className="border-4 border-transparent border-t-white" />
       </div>
     </div>
   );
-}
+});
