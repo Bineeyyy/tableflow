@@ -48,21 +48,21 @@ export function Sidebar() {
       <aside
         className={cn(
           'flex flex-col h-screen z-50',
-          // Desktop: sticky 64-wide column in flow
-          'md:sticky md:top-0 md:w-64 md:translate-x-0 md:transition-none',
-          // Mobile: fixed drawer slides in from the left
+          // Tablet (md..lg): icon-only column. Desktop (lg+): full 256px sidebar.
+          'md:sticky md:top-0 md:w-16 lg:w-64 md:translate-x-0 md:transition-none',
+          // Mobile (<md): fixed drawer slides in from the left
           'fixed top-0 left-0 w-72 max-w-[85vw] transition-transform duration-200',
           open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         )}
         style={{ background: '#0A0A0A' }}
       >
-      {/* Logo */}
-      <div className="px-5 py-5 border-b border-white/5 flex items-center justify-between">
+      {/* Logo — full at mobile/desktop, icon-only at tablet */}
+      <div className="px-5 md:px-3 lg:px-5 py-5 border-b border-white/5 flex items-center justify-between md:justify-center lg:justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-[#F97316] flex items-center justify-center">
+          <div className="w-9 h-9 rounded-lg bg-[#F97316] flex items-center justify-center flex-shrink-0">
             <UtensilsCrossed size={18} className="text-white" strokeWidth={2.4} />
           </div>
-          <div>
+          <div className="md:hidden lg:block">
             <h1 className="text-white font-bold text-[15px] leading-none tracking-tight">TableFlow</h1>
             <p className="text-white/40 text-[11px] mt-1 font-medium">Restaurant OS</p>
           </div>
@@ -76,8 +76,8 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* Restaurant selector */}
-      <div className="px-3 py-3 border-b border-white/5">
+      {/* Restaurant selector — drawer + desktop only */}
+      <div className="px-3 py-3 border-b border-white/5 md:hidden lg:block">
         <button className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors group">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-md bg-white/5 flex items-center justify-center">
@@ -89,9 +89,12 @@ export function Sidebar() {
         </button>
       </div>
 
+      {/* Subtle divider on tablet (replaces the restaurant selector block) */}
+      <div className="hidden md:block lg:hidden border-b border-white/5" />
+
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        <p className="text-white/30 text-[10px] uppercase tracking-[0.12em] font-semibold px-3 mb-3">
+      <nav className="flex-1 px-2 md:px-2 lg:px-3 py-4 space-y-0.5 overflow-y-auto">
+        <p className="text-white/30 text-[10px] uppercase tracking-[0.12em] font-semibold px-3 mb-3 md:hidden lg:block">
           Κύριο Μενού
         </p>
         {NAV_ITEMS.map(({ href, icon: Icon, label, badge }) => {
@@ -101,8 +104,13 @@ export function Sidebar() {
               key={href}
               href={href}
               onClick={close}
+              title={label}
               className={cn(
-                'relative flex items-center justify-between pl-3 pr-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150',
+                'relative flex items-center rounded-lg text-[13px] font-medium transition-all duration-150',
+                // Tablet: centered icon, no labels. Mobile/desktop: row with label + badge.
+                'pl-3 pr-3 py-2.5 justify-between',
+                'md:px-0 md:py-2.5 md:justify-center',
+                'lg:pl-3 lg:pr-3 lg:justify-between',
                 isActive
                   ? 'text-[#F97316] bg-[#F97316]/10'
                   : 'text-white/55 hover:text-white hover:bg-white/5'
@@ -116,14 +124,14 @@ export function Sidebar() {
                   style={{ boxShadow: '0 0 12px rgba(249, 115, 22, 0.6)' }}
                 />
               )}
-              <div className="flex items-center gap-3">
-                <Icon size={16} strokeWidth={isActive ? 2.4 : 2} />
-                <span>{label}</span>
+              <div className="flex items-center gap-3 md:gap-0 lg:gap-3">
+                <Icon size={18} strokeWidth={isActive ? 2.4 : 2} />
+                <span className="md:hidden lg:inline">{label}</span>
               </div>
               {badge && (
                 <span
                   className={cn(
-                    'text-[10px] font-bold px-1.5 py-0.5 rounded-md min-w-[18px] text-center',
+                    'text-[10px] font-bold px-1.5 py-0.5 rounded-md min-w-[18px] text-center md:hidden lg:inline-flex',
                     isActive
                       ? 'bg-[#F97316] text-white'
                       : 'bg-white/10 text-white/70'
@@ -132,6 +140,14 @@ export function Sidebar() {
                   {badge}
                 </span>
               )}
+              {/* Tablet-only badge dot — orange pip in the corner */}
+              {badge && (
+                <span
+                  aria-hidden
+                  className="hidden md:block lg:hidden absolute top-1.5 right-2.5 w-1.5 h-1.5 rounded-full bg-[#F97316]"
+                  style={{ boxShadow: '0 0 6px rgba(249,115,22,0.7)' }}
+                />
+              )}
             </Link>
           );
         })}
@@ -139,11 +155,12 @@ export function Sidebar() {
 
       {/* User / Logout */}
       <div className="p-3 border-t border-white/5">
-        <div className="flex items-center gap-3 px-2 py-2 rounded-lg">
+        {/* Tablet: stack avatar + logout button vertically and centered */}
+        <div className="flex items-center gap-3 px-2 py-2 md:flex-col md:gap-2 md:px-0 lg:flex-row lg:gap-3 lg:px-2">
           <div className="w-8 h-8 rounded-full bg-[#F97316]/15 flex items-center justify-center flex-shrink-0 ring-1 ring-[#F97316]/30">
             <span className="text-[#F97316] text-[13px] font-bold">Α</span>
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 md:hidden lg:block">
             <p className="text-white text-[13px] font-semibold truncate leading-tight">Αλέξης Παπαδόπουλος</p>
             <p className="text-white/40 text-[11px] truncate mt-0.5">Ιδιοκτήτης</p>
           </div>
