@@ -24,16 +24,11 @@ export function StatCard({
   return (
     <div
       className={cn(
-        'relative bg-white rounded-lg p-5 border border-[#E5E7EB] shadow-card hover:shadow-card-hover transition-shadow overflow-hidden',
+        'relative bg-white rounded-lg p-5 shadow-card hover:shadow-card-hover transition-shadow',
+        accent ? 'border-2 border-[#F97316]' : 'border border-[#E5E7EB]',
         className
       )}
     >
-      {accent && (
-        <span
-          aria-hidden
-          className="absolute top-0 left-0 right-0 h-[3px] bg-[#F97316]"
-        />
-      )}
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <p className="text-[11px] font-semibold text-[#6B7280] uppercase tracking-[0.08em]">

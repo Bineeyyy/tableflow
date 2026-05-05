@@ -18,8 +18,7 @@ export default function DashboardLoading() {
       <div className="flex-1 overflow-hidden p-6 space-y-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[0, 1, 2, 3].map(i => (
-            <div key={i} className="bg-white rounded-lg border border-[#E5E7EB] p-5 shadow-card relative overflow-hidden">
-              <span aria-hidden className="absolute top-0 left-0 right-0 h-[3px] bg-[#F97316]/30" />
+            <div key={i} className="bg-white rounded-lg border-2 border-[#F97316] p-5 shadow-card">
               <div className="h-3 w-20 bg-[#F8F8F8] rounded mb-3" />
               <div className="h-8 w-24 bg-[#F8F8F8] rounded" />
               <div className="h-3 w-32 bg-[#F8F8F8] rounded mt-3" />
