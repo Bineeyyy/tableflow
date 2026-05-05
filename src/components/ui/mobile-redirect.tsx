@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 // the dashboard on desktop/tablet and only ever touch a phone via the waiter
 // app — splitting the experiences here means we never have to make the
 // dense desktop dashboard "responsive enough" for a 360px screen.
-export function MobileRedirect({ to = '/dashboard/waiter', breakpoint = 1024 }: { to?: string; breakpoint?: number }) {
+export function MobileRedirect({ to = '/dashboard/waiter', breakpoint = 768 }: { to?: string; breakpoint?: number }) {
   const router = useRouter();
 
   useEffect(() => {
