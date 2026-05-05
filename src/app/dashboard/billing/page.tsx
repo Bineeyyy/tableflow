@@ -2,7 +2,9 @@ import { TopBar } from '@/components/ui/topbar';
 import { SubscribeButton } from '@/components/billing/subscribe-button';
 import { PortalButton } from '@/components/billing/portal-button';
 import { getMyRestaurant } from '@/lib/supabase/server-queries';
+import { createClient } from '@/lib/supabase/server';
 import { stripe } from '@/lib/stripe';
+import { cookies } from 'next/headers';
 import {
   Check, X, Zap, Building2, Star,
   CreditCard, Shield, AlertTriangle, CheckCircle2,
@@ -109,10 +111,12 @@ function StatusBanner({
   plan,
   status,
   hasCustomer,
+  isActiveSub,
 }: {
   plan: string;
   status: string | null;
   hasCustomer: boolean;
+  isActiveSub: boolean;
 }) {
   if (status === 'past_due') {
     return (
@@ -145,7 +149,8 @@ function StatusBanner({
     );
   }
 
-  if (plan === 'pro' && (status === 'active' || status === 'trialing')) {
+  // subscription_status is the source of truth — `plan` column may lag behind.
+  if (isActiveSub) {
     return (
       <div className="flex items-center gap-3 px-5 py-4 bg-white border border-[#10B981]/30 rounded-lg shadow-card">
         <CheckCircle2 size={20} className="text-[#10B981] flex-shrink-0" />
@@ -180,13 +185,47 @@ function StatusBanner({
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ success?: string }>;
+  searchParams: Promise<{ success?: string; debug?: string }>;
 }) {
+  const { success, debug } = await searchParams;
+
+  // Pull the selected restaurant + the full owned-list for debugging visibility.
+  // getMyRestaurant() applies the same cookie-pinning rule used elsewhere.
   const restaurant = await getMyRestaurant();
-  const currentPlan = restaurant?.plan ?? 'free';
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const cookieStore = await cookies();
+  const cookieRestaurantId = cookieStore.get('tf_restaurant_id')?.value ?? null;
+
+  const { data: ownedRestaurants } = await supabase
+    .from('restaurants')
+    .select('id, name, plan, subscription_status, stripe_customer_id, stripe_subscription_id, created_at')
+    .eq('owner_id', user?.id ?? '')
+    .order('created_at', { ascending: true });
+
+  // Always log to server (Vercel) so we can debug without /?debug=1
+  console.log('[billing] page load', JSON.stringify({
+    user_id: user?.id ?? null,
+    cookie_tf_restaurant_id: cookieRestaurantId,
+    selected_restaurant_id: restaurant?.id ?? null,
+    selected_plan: restaurant?.plan ?? null,
+    selected_subscription_status: restaurant?.subscription_status ?? null,
+    selected_stripe_subscription_id: restaurant?.stripe_subscription_id ?? null,
+    owned_restaurants_count: ownedRestaurants?.length ?? 0,
+    owned_restaurants: ownedRestaurants ?? [],
+  }));
+
+  const rawPlan = restaurant?.plan ?? 'free';
   const subStatus = restaurant?.subscription_status ?? null;
+  const isActiveSub = subStatus === 'active' || subStatus === 'trialing';
+
+  // subscription_status is the canonical source of truth. If the subscription is
+  // active in Stripe (or someone manually flipped it in Supabase) but the `plan`
+  // column wasn't bumped — treat the user as Pro for display purposes.
+  const currentPlan = isActiveSub && rawPlan === 'free' ? 'pro' : rawPlan;
+  const planMismatch = isActiveSub && rawPlan === 'free';
   const hasCustomer = !!restaurant?.stripe_customer_id;
-  const { success } = await searchParams;
   const proPrice = await getProPriceLabel();
 
   return (
@@ -205,7 +244,43 @@ export default async function BillingPage({
         )}
 
         {/* Status banner */}
-        <StatusBanner plan={currentPlan} status={subStatus} hasCustomer={hasCustomer} />
+        <StatusBanner plan={currentPlan} status={subStatus} hasCustomer={hasCustomer} isActiveSub={isActiveSub} />
+
+        {/* Mismatch warning — visible to the owner only when subscription_status
+            says active but the plan column is still 'free'. Means the webhook
+            didn't bump plan, OR someone set status manually. */}
+        {planMismatch && (
+          <div className="flex items-start gap-3 px-5 py-4 bg-white border border-[#F97316]/30 rounded-lg shadow-card">
+            <AlertTriangle size={18} className="text-[#F97316] mt-0.5 flex-shrink-0" />
+            <div className="flex-1 text-[13px]">
+              <p className="font-bold text-[#0A0A0A] tracking-tight">Ασυμφωνία plan vs subscription_status</p>
+              <p className="text-[#6B7280] mt-0.5">
+                Η συνδρομή είναι ενεργή στο Stripe, αλλά η στήλη <code className="font-mono">plan</code> εξακολουθεί να είναι <code className="font-mono">free</code>.
+                Αυτό συνήθως σημαίνει ότι ο webhook δεν ενημέρωσε το <code className="font-mono">plan</code>. Ορίστε χειροκίνητα <code className="font-mono">plan = &apos;pro&apos;</code> ή ελέγξτε τα logs του webhook.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Debug pane — visible only with ?debug=1 query string */}
+        {debug === '1' && (
+          <div className="bg-[#0A0A0A] rounded-lg p-5 text-[12px] text-white/90 font-mono overflow-x-auto">
+            <div className="text-[10px] uppercase tracking-[0.1em] font-bold text-[#F97316] mb-3">Billing Debug</div>
+            <pre className="whitespace-pre-wrap break-all">{JSON.stringify({
+              user_id: user?.id ?? null,
+              cookie_tf_restaurant_id: cookieRestaurantId,
+              selected_restaurant_id: restaurant?.id ?? null,
+              selected_plan_raw: rawPlan,
+              selected_subscription_status: subStatus,
+              selected_stripe_subscription_id: restaurant?.stripe_subscription_id ?? null,
+              selected_stripe_customer_id: restaurant?.stripe_customer_id ?? null,
+              derived_currentPlan: currentPlan,
+              derived_isActiveSub: isActiveSub,
+              owned_restaurants_count: ownedRestaurants?.length ?? 0,
+              owned_restaurants: ownedRestaurants ?? [],
+            }, null, 2)}</pre>
+          </div>
+        )}
 
         {/* Plan cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
