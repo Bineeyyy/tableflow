@@ -7,9 +7,19 @@ import { setTableOccupancy } from '@/app/actions/waiter';
 import { OccupyModal } from '@/components/ui/occupy-modal';
 import type { Table } from '@/types';
 
-export function FloorTab({ tables }: { tables: Table[] }) {
+type Props = {
+  tables: Table[];
+  // Optimistic patch applied to the parent's table state. Used so a tap turns
+  // the card red instantly instead of waiting on the realtime echo from
+  // postgres → supabase realtime → client. If the server action errors we
+  // call this again with the previous values to roll back.
+  onTablePatch: (id: string, patch: Partial<Table>) => void;
+};
+
+export function FloorTab({ tables, onTablePatch }: Props) {
   const [pending, setPending] = useState<Set<string>>(new Set());
   const [occupyTarget, setOccupyTarget] = useState<Table | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   if (tables.length === 0) {
     return (
@@ -24,25 +34,55 @@ export function FloorTab({ tables }: { tables: Table[] }) {
   const endPending = (id: string) =>
     setPending(prev => { const next = new Set(prev); next.delete(id); return next; });
 
-  const handleTap = (table: Table) => {
+  const flashError = (msg: string) => {
+    setError(msg);
+    setTimeout(() => setError(null), 3000);
+  };
+
+  const handleTap = async (table: Table) => {
     if (pending.has(table.id)) return;
     if (table.status === 'occupied') {
-      // Free immediately, no confirmation.
+      // Tap occupied → free. Optimistic flip first, server action behind it.
+      const prev = { status: table.status, current_guests: table.current_guests };
+      onTablePatch(table.id, { status: 'available', current_guests: 0 });
       startPending(table.id);
-      setTableOccupancy(table.id, { occupied: false }).finally(() => endPending(table.id));
+      try {
+        const res = await setTableOccupancy(table.id, { occupied: false });
+        if (res.error) {
+          onTablePatch(table.id, prev);
+          flashError(res.error);
+        }
+      } catch (err) {
+        onTablePatch(table.id, prev);
+        flashError(err instanceof Error ? err.message : 'Σφάλμα');
+      } finally {
+        endPending(table.id);
+      }
     } else {
+      // Tap free → ask guest count via modal.
       setOccupyTarget(table);
     }
   };
 
   const confirmOccupy = async (guests: number) => {
     if (!occupyTarget) return;
-    startPending(occupyTarget.id);
+    const target = occupyTarget;
+    const prev = { status: target.status, current_guests: target.current_guests };
     setOccupyTarget(null);
+    // Optimistic — flip the card red right now.
+    onTablePatch(target.id, { status: 'occupied', current_guests: guests });
+    startPending(target.id);
     try {
-      await setTableOccupancy(occupyTarget.id, { occupied: true, guests });
+      const res = await setTableOccupancy(target.id, { occupied: true, guests });
+      if (res.error) {
+        onTablePatch(target.id, prev);
+        flashError(res.error);
+      }
+    } catch (err) {
+      onTablePatch(target.id, prev);
+      flashError(err instanceof Error ? err.message : 'Σφάλμα');
     } finally {
-      endPending(occupyTarget.id);
+      endPending(target.id);
     }
   };
 
@@ -64,6 +104,12 @@ export function FloorTab({ tables }: { tables: Table[] }) {
           <div className="text-[10px] uppercase tracking-wide text-white/50 font-semibold mt-0.5">Κατειλημμ.</div>
         </div>
       </div>
+
+      {error && (
+        <div className="bg-red-500/15 border border-red-500/30 text-red-300 text-[12px] font-medium px-3 py-2 rounded-lg">
+          {error}
+        </div>
+      )}
 
       {/* 2-col table grid */}
       <div className="grid grid-cols-2 gap-3">

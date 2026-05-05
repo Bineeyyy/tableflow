@@ -88,13 +88,17 @@ export async function saveRestaurantSettings(data: {
   if (newCount > currentCount) {
     const COLS = 5
     const startNumber = (rows[rows.length - 1]?.number ?? 0) + 1
+    // New tables default to 4 seats and a square shape — owner edits each
+    // table's capacity/shape individually afterwards. We deliberately do NOT
+    // touch existing tables' seats here (this branch only fires when growing
+    // the table count; shrinking only deletes the highest-numbered rows).
     const toInsert = Array.from({ length: newCount - currentCount }, (_, i) => {
       const idx = currentCount + i
       return {
         restaurant_id: restaurantId,
         number: startNumber + i,
-        seats: idx % 3 === 2 ? 6 : 4,
-        shape: (idx % 2 === 0 ? 'round' : 'square') as 'round' | 'square',
+        seats: 4,
+        shape: 'square' as const,
         status: 'available' as const,
         pos_x: 80 + (idx % COLS) * 140,
         pos_y: 80 + Math.floor(idx / COLS) * 140,

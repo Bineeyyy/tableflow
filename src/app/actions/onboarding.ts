@@ -46,13 +46,14 @@ export async function createRestaurant(_: unknown, formData: FormData) {
     return { error: 'Σφάλμα κατά τη ρύθμιση δικαιωμάτων. Δοκιμάστε ξανά.' }
   }
 
-  // Seed default tables in a simple grid layout (5 columns)
+  // Seed default tables in a simple grid layout (5 columns). All new tables
+  // start at 4 seats / square shape — owner edits capacity per-table later.
   const COLS = 5
   const tables = Array.from({ length: numTables }, (_, i) => ({
     restaurant_id: restaurantId,
     number: i + 1,
-    seats: i % 3 === 2 ? 6 : 4,
-    shape: (i % 2 === 0 ? 'round' : 'square') as 'round' | 'square',
+    seats: 4,
+    shape: 'square' as const,
     status: 'available' as const,
     pos_x: 80 + (i % COLS) * 140,
     pos_y: 80 + Math.floor(i / COLS) * 140,

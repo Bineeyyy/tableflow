@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { LayoutGrid, CalendarDays, ClipboardList, User, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -62,6 +62,15 @@ export function WaiterApp({
   const [live, setLive] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const knownReservationIds = useRef(new Set(initialReservations.map(r => r.id)));
+
+  // Optimistic mutator handed to children. Applied immediately on tap so the
+  // UI flips colour without waiting on the realtime echo (which depends on a
+  // healthy WS connection — phones on flaky cellular drop the channel a lot).
+  // The realtime handler below idempotently re-applies the same row when the
+  // round-trip lands.
+  const applyTablePatch = useCallback((id: string, patch: Partial<Table>) => {
+    setTables(prev => prev.map(t => t.id === id ? { ...t, ...patch } : t));
+  }, []);
 
   // Real-time: subscribe to restaurant-scoped changes on tables + reservations.
   // The supabase publication is filtered server-side via RLS so other
@@ -168,7 +177,7 @@ export function WaiterApp({
 
         {/* Active tab content */}
         <main className="flex-1 overflow-y-auto pb-24">
-          {tab === 'floor' && <FloorTab tables={tables} />}
+          {tab === 'floor' && <FloorTab tables={tables} onTablePatch={applyTablePatch} />}
           {tab === 'reservations' && <ReservationsTab reservations={reservations} tables={tables} />}
           {tab === 'orders' && <OrdersTab orders={orders} tables={tables} />}
           {tab === 'profile' && <ProfileTab userEmail={userEmail} restaurantName={restaurantName} />}
