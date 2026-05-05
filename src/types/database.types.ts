@@ -305,6 +305,7 @@ export type Database = {
           shape: Database["public"]["Enums"]["table_shape"]
           status: Database["public"]["Enums"]["table_status"]
           updated_at: string
+          zone: string | null
         }
         Insert: {
           created_at?: string
@@ -319,6 +320,7 @@ export type Database = {
           shape?: Database["public"]["Enums"]["table_shape"]
           status?: Database["public"]["Enums"]["table_status"]
           updated_at?: string
+          zone?: string | null
         }
         Update: {
           created_at?: string
@@ -333,6 +335,7 @@ export type Database = {
           shape?: Database["public"]["Enums"]["table_shape"]
           status?: Database["public"]["Enums"]["table_status"]
           updated_at?: string
+          zone?: string | null
         }
         Relationships: [
           {

@@ -28,7 +28,8 @@ const NAV: { key: Tab; label: string; icon: React.ElementType }[] = [
 function mapTable(t: DbTable): Table {
   return {
     id: t.id, number: t.number, seats: t.seats, current_guests: t.current_guests,
-    status: t.status, x: t.pos_x, y: t.pos_y, shape: t.shape, label: t.label ?? undefined,
+    status: t.status, x: t.pos_x, y: t.pos_y, shape: t.shape,
+    label: t.label ?? undefined, zone: t.zone ?? undefined,
   };
 }
 

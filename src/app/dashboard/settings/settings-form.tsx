@@ -5,16 +5,19 @@ import { useRouter } from 'next/navigation';
 import { TopBar } from '@/components/ui/topbar';
 import { cn } from '@/lib/utils';
 import {
-  Store, Clock, Bell, User,
+  Store, Clock, Bell, User, Grid3x3,
   Save, Eye, EyeOff, ToggleLeft, ToggleRight, MapPin, Phone, Mail, Utensils,
 } from 'lucide-react';
-import { saveRestaurantSettings } from '@/app/actions/settings';
+import { saveRestaurantSettings, updateTables, type TableEdit } from '@/app/actions/settings';
+import { TABLE_ZONES } from '@/types';
+import type { Table } from '@/types';
 import type { Tables } from '@/types/database.types';
 
-type Tab = 'restaurant' | 'hours' | 'notifications' | 'account';
+type Tab = 'restaurant' | 'tables' | 'hours' | 'notifications' | 'account';
 
 const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
   { key: 'restaurant', label: 'Εστιατόριο', icon: Store },
+  { key: 'tables', label: 'Τραπέζια', icon: Grid3x3 },
   { key: 'hours', label: 'Ωράριο', icon: Clock },
   { key: 'notifications', label: 'Ειδοποιήσεις', icon: Bell },
   { key: 'account', label: 'Λογαριασμός', icon: User },
@@ -67,10 +70,24 @@ function Toggle({ enabled, onToggle, label }: { enabled: boolean; onToggle: () =
 type Props = {
   restaurant: Tables<'restaurants'> | null;
   tableCount: number;
+  tables: Table[];
   userEmail: string;
 };
 
-export function SettingsForm({ restaurant, tableCount, userEmail }: Props) {
+type TableRow = TableEdit;
+
+function tableToRow(t: Table): TableRow {
+  return {
+    id: t.id,
+    number: t.number,
+    label: t.label ?? '',
+    seats: t.seats,
+    shape: t.shape,
+    zone: t.zone ?? '',
+  };
+}
+
+export function SettingsForm({ restaurant, tableCount, tables, userEmail }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('restaurant');
   const [saving, setSaving] = useState(false);
@@ -78,6 +95,31 @@ export function SettingsForm({ restaurant, tableCount, userEmail }: Props) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [hours, setHours] = useState<DayHours[]>(parseHours(restaurant?.operating_hours));
+
+  // Per-table edit rows; sorted by number for stable display.
+  const [tableRows, setTableRows] = useState<TableRow[]>(
+    [...tables].sort((a, b) => a.number - b.number).map(tableToRow)
+  );
+  const [tablesSaving, setTablesSaving] = useState(false);
+  const [tablesSaved, setTablesSaved] = useState(false);
+  const [tablesError, setTablesError] = useState<string | null>(null);
+
+  const updateRow = <K extends keyof TableRow>(id: string, key: K, value: TableRow[K]) =>
+    setTableRows(prev => prev.map(r => r.id === id ? { ...r, [key]: value } : r));
+
+  const handleSaveTables = async () => {
+    setTablesSaving(true);
+    setTablesError(null);
+    const result = await updateTables(tableRows);
+    setTablesSaving(false);
+    if (result.error) {
+      setTablesError(result.error);
+      return;
+    }
+    setTablesSaved(true);
+    setTimeout(() => setTablesSaved(false), 2500);
+    router.refresh();
+  };
 
   const [restaurantForm, setRestaurantForm] = useState({
     name: restaurant?.name ?? '',
@@ -178,6 +220,119 @@ export function SettingsForm({ restaurant, tableCount, userEmail }: Props) {
               </>
             )}
 
+            {tab === 'tables' && (
+              <>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <h3 className="font-bold text-[#0A0A0A] tracking-tight flex items-center gap-2">
+                    <Grid3x3 size={17} className="text-[#F97316]" />
+                    Τραπέζια ({tableRows.length})
+                  </h3>
+                  <p className="text-[11px] text-[#6B7280]">
+                    Αλλάξτε αριθμό, ονομασία, χωρητικότητα, σχήμα και ζώνη ανά τραπέζι.
+                  </p>
+                </div>
+
+                {tableRows.length === 0 ? (
+                  <div className="text-center py-12 text-[#6B7280] text-[13px]">
+                    Δεν υπάρχουν τραπέζια. Προσθέστε από την καρτέλα <strong>Εστιατόριο</strong>.
+                  </div>
+                ) : (
+                  <>
+                    {/* Header row — desktop only */}
+                    <div className="hidden md:grid grid-cols-[60px_1fr_70px_120px_1fr_24px] gap-3 px-3 text-[10px] font-bold uppercase tracking-wider text-[#6B7280]">
+                      <span>#</span>
+                      <span>Όνομα</span>
+                      <span>Θέσεις</span>
+                      <span>Σχήμα</span>
+                      <span>Ζώνη</span>
+                      <span />
+                    </div>
+
+                    <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+                      {tableRows.map(row => (
+                        <div
+                          key={row.id}
+                          className="grid grid-cols-2 md:grid-cols-[60px_1fr_70px_120px_1fr_24px] gap-2 md:gap-3 items-center bg-[#F8F8F8] md:bg-transparent border md:border-0 border-[#E5E7EB] rounded-lg md:rounded-none p-3 md:p-0"
+                        >
+                          {/* Number */}
+                          <div className="md:col-span-1">
+                            <label className="md:hidden block text-[10px] font-bold uppercase tracking-wider text-[#6B7280] mb-1">#</label>
+                            <input
+                              type="number" min={1} max={999}
+                              value={row.number}
+                              onChange={e => updateRow(row.id, 'number', parseInt(e.target.value) || 0)}
+                              className="w-full px-3 py-2 border border-[#E5E7EB] rounded-md text-[13px] font-bold tabular-nums focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15 bg-white"
+                            />
+                          </div>
+
+                          {/* Label / name */}
+                          <div className="md:col-span-1">
+                            <label className="md:hidden block text-[10px] font-bold uppercase tracking-wider text-[#6B7280] mb-1">Όνομα</label>
+                            <input
+                              type="text" placeholder="π.χ. VIP, T-7"
+                              value={row.label}
+                              onChange={e => updateRow(row.id, 'label', e.target.value)}
+                              className="w-full px-3 py-2 border border-[#E5E7EB] rounded-md text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15 bg-white"
+                            />
+                          </div>
+
+                          {/* Seats */}
+                          <div className="md:col-span-1">
+                            <label className="md:hidden block text-[10px] font-bold uppercase tracking-wider text-[#6B7280] mb-1">Θέσεις</label>
+                            <input
+                              type="number" min={1} max={20}
+                              value={row.seats}
+                              onChange={e => updateRow(row.id, 'seats', parseInt(e.target.value) || 0)}
+                              className="w-full px-3 py-2 border border-[#E5E7EB] rounded-md text-[13px] font-bold tabular-nums focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15 bg-white"
+                            />
+                          </div>
+
+                          {/* Shape */}
+                          <div className="md:col-span-1">
+                            <label className="md:hidden block text-[10px] font-bold uppercase tracking-wider text-[#6B7280] mb-1">Σχήμα</label>
+                            <select
+                              value={row.shape}
+                              onChange={e => updateRow(row.id, 'shape', e.target.value as TableRow['shape'])}
+                              className="w-full px-3 py-2 border border-[#E5E7EB] rounded-md text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15 bg-white"
+                            >
+                              <option value="round">Στρογγυλό</option>
+                              <option value="square">Τετράγωνο</option>
+                              <option value="rectangle">Ορθογώνιο</option>
+                            </select>
+                          </div>
+
+                          {/* Zone — col-span-2 on mobile to give it room */}
+                          <div className="col-span-2 md:col-span-1">
+                            <label className="md:hidden block text-[10px] font-bold uppercase tracking-wider text-[#6B7280] mb-1">Ζώνη</label>
+                            <select
+                              value={row.zone}
+                              onChange={e => updateRow(row.id, 'zone', e.target.value)}
+                              className="w-full px-3 py-2 border border-[#E5E7EB] rounded-md text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15 bg-white"
+                            >
+                              <option value="">— Καμία —</option>
+                              {TABLE_ZONES.map(z => <option key={z} value={z}>{z}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-4 border-t border-[#E5E7EB] flex-wrap gap-2">
+                      <div>
+                        {tablesSaved && <p className="text-[13px] text-[#10B981] font-bold flex items-center gap-1.5">✓ Τα τραπέζια αποθηκεύτηκαν</p>}
+                        {tablesError && <p className="text-[13px] text-[#EF4444] font-bold">{tablesError}</p>}
+                      </div>
+                      <button onClick={handleSaveTables} disabled={tablesSaving}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-[#F97316] hover:bg-[#EA580C] text-white text-[13px] font-bold rounded-lg transition-colors active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed">
+                        <Save size={15} strokeWidth={2.6} />
+                        {tablesSaving ? 'Αποθήκευση…' : 'Αποθήκευση τραπεζιών'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
             {tab === 'hours' && (
               <>
                 <h3 className="font-bold text-[#0A0A0A] tracking-tight flex items-center gap-2"><Clock size={17} className="text-[#F97316]" />Ωράριο Λειτουργίας</h3>
@@ -262,7 +417,8 @@ export function SettingsForm({ restaurant, tableCount, userEmail }: Props) {
               </>
             )}
 
-            {/* Save button */}
+            {/* Save button — hidden on tables tab which has its own save bar */}
+            {tab !== 'tables' && (
             <div className="flex items-center justify-between pt-4 border-t border-[#E5E7EB]">
               <div>
                 {saved && <p className="text-[13px] text-[#10B981] font-bold flex items-center gap-1.5">✓ Οι αλλαγές αποθηκεύτηκαν</p>}
@@ -274,6 +430,7 @@ export function SettingsForm({ restaurant, tableCount, userEmail }: Props) {
                 {saving ? 'Αποθήκευση…' : 'Αποθήκευση'}
               </button>
             </div>
+            )}
           </div>
         </div>
       </div>

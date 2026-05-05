@@ -13,6 +13,7 @@ export default async function SettingsPage() {
     <SettingsForm
       restaurant={restaurant}
       tableCount={tables.length}
+      tables={tables}
       userEmail={user?.email ?? ''}
     />
   );

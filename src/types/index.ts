@@ -12,8 +12,14 @@ export interface Table {
   y: number;
   shape: 'round' | 'square' | 'rectangle';
   label?: string;
+  zone?: string;
   current_order_id?: string;
 }
+
+// Canonical zone presets shown in the settings dropdown. Stored as plain text
+// in the DB so a restaurant can later type a custom zone if their layout
+// doesn't match these.
+export const TABLE_ZONES = ['Αίθουσα', 'Βεράντα', 'Μπαρ', 'Ιδιωτικός'] as const;
 
 export interface Order {
   id: string;

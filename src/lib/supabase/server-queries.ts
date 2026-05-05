@@ -20,6 +20,7 @@ function mapTable(t: DbTable): Table {
     y: t.pos_y,
     shape: t.shape,
     label: t.label ?? undefined,
+    zone: t.zone ?? undefined,
   };
 }
 
