@@ -294,6 +294,7 @@ export type Database = {
       restaurant_tables: {
         Row: {
           created_at: string
+          current_guests: number
           id: string
           label: string | null
           number: number
@@ -307,6 +308,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          current_guests?: number
           id?: string
           label?: string | null
           number: number
@@ -320,6 +322,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          current_guests?: number
           id?: string
           label?: string | null
           number?: number
@@ -411,7 +414,7 @@ export type Database = {
       reservation_status: "pending" | "confirmed" | "seated" | "completed" | "cancelled"
       restaurant_plan: "free" | "pro" | "enterprise"
       table_shape: "round" | "square" | "rectangle"
-      table_status: "available" | "occupied" | "reserved" | "cleaning"
+      table_status: "available" | "occupied"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -453,7 +456,7 @@ export const Constants = {
       reservation_status: ["pending", "confirmed", "seated", "completed", "cancelled"],
       restaurant_plan: ["free", "pro", "enterprise"],
       table_shape: ["round", "square", "rectangle"],
-      table_status: ["available", "occupied", "reserved", "cleaning"],
+      table_status: ["available", "occupied"],
     },
   },
 } as const

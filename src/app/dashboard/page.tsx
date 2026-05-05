@@ -1,6 +1,7 @@
 import { TopBar } from '@/components/ui/topbar';
 import { StatCard } from '@/components/ui/stat-card';
 import { FloorPlan } from '@/components/floor-plan/floor-plan';
+import { MobileRedirect } from '@/components/ui/mobile-redirect';
 import { formatCurrency } from '@/lib/utils';
 import {
   getMyRestaurant,
@@ -47,6 +48,7 @@ export default async function DashboardPage() {
 
   return (
     <>
+      <MobileRedirect />
       <TopBar
         title="Κάτοψη Εστιατορίου"
         subtitle={restaurant.name}

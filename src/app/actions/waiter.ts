@@ -32,6 +32,42 @@ async function pinnedRestaurantId(): Promise<string | null> {
   return oldest?.id ?? null
 }
 
+// Tap-to-flip table status. Mark a free table as occupied with N guests, or
+// mark an occupied table as free (resets current_guests to 0). The waiter
+// floor calls this on every tap, so it must be cheap and not require any
+// confirmation step.
+export async function setTableOccupancy(tableId: string, params:
+  | { occupied: true; guests: number }
+  | { occupied: false }
+) {
+  const supabase = await createClient()
+
+  if (params.occupied) {
+    if (params.guests < 1 || params.guests > 20) return { error: 'Μη έγκυρος αριθμός ατόμων' }
+    const { error } = await supabase
+      .from('restaurant_tables')
+      .update({ status: 'occupied', current_guests: params.guests })
+      .eq('id', tableId)
+    if (error) {
+      console.error('[waiter] occupy table failed:', error)
+      return { error: `Σφάλμα: ${error.message}` }
+    }
+  } else {
+    const { error } = await supabase
+      .from('restaurant_tables')
+      .update({ status: 'available', current_guests: 0 })
+      .eq('id', tableId)
+    if (error) {
+      console.error('[waiter] free table failed:', error)
+      return { error: `Σφάλμα: ${error.message}` }
+    }
+  }
+
+  revalidatePath('/dashboard/waiter')
+  revalidatePath('/dashboard')
+  return { success: true }
+}
+
 // Walk-in: assign the first available table that fits the party size and open
 // an order on it. Returns the assigned table number so the UI can show it.
 export async function createWalkin(guests: number) {
@@ -77,7 +113,7 @@ export async function createWalkin(guests: number) {
 
   const { error: statusErr } = await supabase
     .from('restaurant_tables')
-    .update({ status: 'occupied' })
+    .update({ status: 'occupied', current_guests: guests })
     .eq('id', candidate.id)
   if (statusErr) {
     console.error('[waiter] mark occupied failed:', statusErr)
@@ -131,7 +167,7 @@ export async function seatReservation(reservationId: string, tableId?: string) {
 
   const { error: tblErr } = await supabase
     .from('restaurant_tables')
-    .update({ status: 'occupied' })
+    .update({ status: 'occupied', current_guests: reservation.party_size })
     .eq('id', resolvedTableId)
   if (tblErr) {
     console.error('[waiter] seat reservation table failed:', tblErr)

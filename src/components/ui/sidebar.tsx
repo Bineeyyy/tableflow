@@ -15,7 +15,6 @@ import {
   CreditCard,
   LogOut,
   ChevronRight,
-  Smartphone,
   X,
 } from 'lucide-react';
 
@@ -24,7 +23,6 @@ const NAV_ITEMS = [
   { href: '/dashboard/orders', icon: ClipboardList, label: 'Παραγγελίες', badge: '4' },
   { href: '/dashboard/menu', icon: UtensilsCrossed, label: 'Μενού', badge: null },
   { href: '/dashboard/reservations', icon: Users, label: 'Κρατήσεις', badge: '2' },
-  { href: '/dashboard/waiter', icon: Smartphone, label: 'Waiter View', badge: null },
   { href: '/dashboard/reports', icon: BarChart3, label: 'Αναφορές', badge: null },
   { href: '/dashboard/billing', icon: CreditCard, label: 'Συνδρομή', badge: null },
   { href: '/dashboard/settings', icon: Settings, label: 'Ρυθμίσεις', badge: null },

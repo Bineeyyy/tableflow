@@ -1,39 +1,24 @@
 'use client';
 
-import { Table, TableStatus, Reservation } from '@/types';
+import { Table, Reservation } from '@/types';
 import { cn } from '@/lib/utils';
-import { StatusBadge } from '@/components/ui/badge';
 import {
-  Users, Clock, X, ChefHat, CheckCircle, Sparkles,
-  CalendarClock, Phone, MessageSquare,
+  Users, Clock, X, ChefHat, CheckCircle, UserPlus,
+  Phone, MessageSquare,
 } from 'lucide-react';
-
-const STATUS_ACTIONS: Record<TableStatus, { label: string; next: TableStatus; icon: React.ReactNode; color: string }[]> = {
-  available: [
-    { label: 'Κράτηση',          next: 'reserved',  icon: <CalendarClock size={14} />, color: 'bg-[#F97316] hover:bg-[#EA580C]' },
-    { label: 'Εισαγωγή Πελατών', next: 'occupied',  icon: <Users size={14} />,         color: 'bg-[#0A0A0A] hover:bg-black' },
-  ],
-  occupied: [
-    { label: 'Κλείσιμο Λογαριασμού', next: 'cleaning', icon: <CheckCircle size={14} />, color: 'bg-[#10B981] hover:bg-[#059669]' },
-  ],
-  reserved: [
-    { label: 'Άφιξη Πελατών',    next: 'occupied',  icon: <Users size={14} />, color: 'bg-[#0A0A0A] hover:bg-black' },
-    { label: 'Ακύρωση Κράτησης', next: 'available', icon: <X size={14} />,     color: 'bg-white text-[#0A0A0A] border border-[#E5E7EB] hover:bg-[#F8F8F8]' },
-  ],
-  cleaning: [
-    { label: 'Ολοκλήρωση Καθαρισμού', next: 'available', icon: <Sparkles size={14} />, color: 'bg-[#10B981] hover:bg-[#059669]' },
-  ],
-};
 
 interface TableDetailPanelProps {
   table: Table;
   reservation?: Reservation;
   onClose: () => void;
-  onStatusChange: (tableId: string, status: TableStatus) => void;
+  onFree: (tableId: string) => void;
+  onRequestOccupy: (table: Table) => void;
 }
 
-export function TableDetailPanel({ table, reservation, onClose, onStatusChange }: TableDetailPanelProps) {
-  const actions = STATUS_ACTIONS[table.status];
+export function TableDetailPanel({
+  table, reservation, onClose, onFree, onRequestOccupy,
+}: TableDetailPanelProps) {
+  const free = table.status === 'available';
 
   return (
     <div className="w-full lg:w-80 lg:flex-shrink-0 bg-white rounded-lg shadow-pop border border-[#E5E7EB] overflow-hidden animate-in slide-in-from-right-4 duration-200">
@@ -55,12 +40,20 @@ export function TableDetailPanel({ table, reservation, onClose, onStatusChange }
             {table.label && <p className="text-[12px] text-white/60 mt-0.5">{table.label}</p>}
             <div className="flex items-center gap-1 mt-1">
               <Users size={12} className="text-white/50" />
-              <span className="text-[12px] text-white/70">{table.seats} θέσεις</span>
+              <span className="text-[12px] text-white/70 tabular-nums">
+                {free ? `0 / ${table.seats}` : `${table.current_guests} / ${table.seats}`}
+              </span>
             </div>
           </div>
         </div>
         <div className="mt-3">
-          <StatusBadge status={table.status} />
+          <span className={cn(
+            'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider',
+            free ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300',
+          )}>
+            <span className={cn('w-1.5 h-1.5 rounded-full', free ? 'bg-emerald-400' : 'bg-red-400')} />
+            {free ? 'Ελεύθερο' : 'Κατειλημμένο'}
+          </span>
         </div>
       </div>
 
@@ -88,30 +81,30 @@ export function TableDetailPanel({ table, reservation, onClose, onStatusChange }
           </div>
         ) : (
           <div className="bg-[#F8F8F8] rounded-lg p-4 text-center text-[#6B7280] text-[12px] border border-[#E5E7EB]">
-            {table.status === 'available'  ? 'Δεν υπάρχει ενεργή κράτηση' :
-             table.status === 'occupied'   ? 'Τραπέζι σε χρήση'          :
-             table.status === 'cleaning'   ? 'Σε διαδικασία καθαρισμού'  :
-                                             'Δεν υπάρχει κράτηση'}
+            {free ? 'Δεν υπάρχει ενεργή κράτηση' : 'Τραπέζι σε χρήση'}
           </div>
         )}
 
-        {/* Action Buttons */}
+        {/* Action — single button per state */}
         <div className="space-y-2">
           <h4 className="text-[10px] font-bold text-[#6B7280] uppercase tracking-[0.1em]">Ενέργειες</h4>
-          {actions.map((action) => (
+          {free ? (
             <button
-              key={action.next}
-              onClick={() => onStatusChange(table.id, action.next)}
-              className={cn(
-                'w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg',
-                'text-white text-[13px] font-semibold transition-all duration-150 active:scale-[0.98]',
-                action.color,
-              )}
+              onClick={() => onRequestOccupy(table)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#0A0A0A] hover:bg-black text-white text-[13px] font-semibold transition-all duration-150 active:scale-[0.98]"
             >
-              {action.icon}
-              {action.label}
+              <UserPlus size={14} />
+              Εισαγωγή Πελατών
             </button>
-          ))}
+          ) : (
+            <button
+              onClick={() => onFree(table.id)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#10B981] hover:bg-[#059669] text-white text-[13px] font-semibold transition-all duration-150 active:scale-[0.98]"
+            >
+              <CheckCircle size={14} />
+              Αποχώρηση Πελατών
+            </button>
+          )}
         </div>
       </div>
     </div>

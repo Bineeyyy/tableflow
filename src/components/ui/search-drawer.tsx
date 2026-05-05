@@ -166,8 +166,6 @@ export function SearchDrawer({ isOpen, onClose }: Props) {
                             'font-semibold',
                             t.status === 'available' && 'text-[#047857]',
                             t.status === 'occupied' && 'text-[#B91C1C]',
-                            t.status === 'reserved' && 'text-[#C2410C]',
-                            t.status === 'cleaning' && 'text-[#1D4ED8]',
                           )}>{getStatusLabel(t.status)}</span>
                           <span>·</span>
                           <span className="flex items-center gap-1"><Users size={11} /> {t.seats}</span>

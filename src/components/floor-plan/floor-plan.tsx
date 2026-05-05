@@ -4,14 +4,13 @@ import { useState, useMemo, useCallback } from 'react';
 import { Table, TableStatus, Reservation } from '@/types';
 import { TableNode } from './table-node';
 import { TableDetailPanel } from './table-detail-panel';
-import { updateTableStatus } from '@/lib/supabase/queries';
+import { OccupyModal } from '@/components/ui/occupy-modal';
+import { setTableOccupancy } from '@/app/actions/waiter';
 import { LayoutGrid, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
 const LEGEND = [
-  { status: 'available' as TableStatus, label: 'Διαθέσιμο',    color: 'bg-[#10B981]' },
+  { status: 'available' as TableStatus, label: 'Ελεύθερο',     color: 'bg-[#10B981]' },
   { status: 'occupied'  as TableStatus, label: 'Κατειλημμένο', color: 'bg-[#EF4444]' },
-  { status: 'reserved'  as TableStatus, label: 'Κρατημένο',    color: 'bg-[#F97316]' },
-  { status: 'cleaning'  as TableStatus, label: 'Καθαρισμός',   color: 'bg-[#3B82F6]' },
 ];
 
 interface FloorPlanProps {
@@ -31,20 +30,35 @@ export function FloorPlan({ initialTables, todayReservations }: FloorPlanProps) 
   const [tables, setTables] = useState<Table[]>(initialTables);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [occupyTarget, setOccupyTarget] = useState<Table | null>(null);
 
   const handleTableClick = useCallback((table: Table) => {
     setSelectedTable(prev => prev?.id === table.id ? null : table);
   }, []);
 
-  const handleStatusChange = useCallback(async (tableId: string, newStatus: TableStatus) => {
-    setTables(prev => prev.map(t => t.id === tableId ? { ...t, status: newStatus } : t));
-    setSelectedTable(prev => prev?.id === tableId ? { ...prev, status: newStatus } : prev);
-    try {
-      await updateTableStatus(tableId, newStatus);
-    } catch (err) {
-      console.error('Failed to update table status:', err);
-    }
+  const applyLocal = useCallback((tableId: string, patch: Partial<Table>) => {
+    setTables(prev => prev.map(t => t.id === tableId ? { ...t, ...patch } : t));
+    setSelectedTable(prev => prev?.id === tableId ? { ...prev, ...patch } : prev);
   }, []);
+
+  const handleFree = useCallback(async (tableId: string) => {
+    applyLocal(tableId, { status: 'available', current_guests: 0 });
+    const res = await setTableOccupancy(tableId, { occupied: false });
+    if (res.error) console.error('Failed to free table:', res.error);
+  }, [applyLocal]);
+
+  const handleRequestOccupy = useCallback((table: Table) => {
+    setOccupyTarget(table);
+  }, []);
+
+  const handleConfirmOccupy = useCallback(async (guests: number) => {
+    if (!occupyTarget) return;
+    const tableId = occupyTarget.id;
+    setOccupyTarget(null);
+    applyLocal(tableId, { status: 'occupied', current_guests: guests });
+    const res = await setTableOccupancy(tableId, { occupied: true, guests });
+    if (res.error) console.error('Failed to occupy table:', res.error);
+  }, [occupyTarget, applyLocal]);
 
   const closePanel = useCallback(() => setSelectedTable(null), []);
   const resetZoom = useCallback(() => setZoom(1), []);
@@ -54,8 +68,6 @@ export function FloorPlan({ initialTables, todayReservations }: FloorPlanProps) 
   const stats = useMemo(() => ({
     available: tables.filter(t => t.status === 'available').length,
     occupied:  tables.filter(t => t.status === 'occupied').length,
-    reserved:  tables.filter(t => t.status === 'reserved').length,
-    cleaning:  tables.filter(t => t.status === 'cleaning').length,
   }), [tables]);
 
   const reservationByTable = useMemo(() => {
@@ -233,7 +245,17 @@ export function FloorPlan({ initialTables, todayReservations }: FloorPlanProps) 
           table={selectedTable}
           reservation={reservationByTable.get(selectedTable.id)}
           onClose={closePanel}
-          onStatusChange={handleStatusChange}
+          onFree={handleFree}
+          onRequestOccupy={handleRequestOccupy}
+        />
+      )}
+
+      {occupyTarget && (
+        <OccupyModal
+          tableNumber={occupyTarget.number}
+          seats={occupyTarget.seats}
+          onPick={handleConfirmOccupy}
+          onClose={() => setOccupyTarget(null)}
         />
       )}
     </div>

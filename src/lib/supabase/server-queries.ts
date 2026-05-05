@@ -14,6 +14,7 @@ function mapTable(t: DbTable): Table {
     id: t.id,
     number: t.number,
     seats: t.seats,
+    current_guests: t.current_guests,
     status: t.status,
     x: t.pos_x,
     y: t.pos_y,

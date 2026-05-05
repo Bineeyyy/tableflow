@@ -1,19 +1,19 @@
 import { Table, Order, Reservation, MenuItem } from '@/types';
 
 export const mockTables: Table[] = [
-  { id: 't1', number: 1, seats: 2, status: 'available', x: 80, y: 80, shape: 'round' },
-  { id: 't2', number: 2, seats: 2, status: 'occupied', x: 220, y: 80, shape: 'round' },
-  { id: 't3', number: 3, seats: 4, status: 'reserved', x: 380, y: 70, shape: 'square' },
-  { id: 't4', number: 4, seats: 4, status: 'available', x: 560, y: 70, shape: 'square' },
-  { id: 't5', number: 5, seats: 2, status: 'available', x: 740, y: 80, shape: 'round' },
-  { id: 't6', number: 6, seats: 6, status: 'occupied', x: 80, y: 250, shape: 'rectangle' },
-  { id: 't7', number: 7, seats: 4, status: 'cleaning', x: 300, y: 240, shape: 'square' },
-  { id: 't8', number: 8, seats: 4, status: 'available', x: 480, y: 240, shape: 'square' },
-  { id: 't9', number: 9, seats: 6, status: 'occupied', x: 660, y: 250, shape: 'rectangle' },
-  { id: 't10', number: 10, seats: 2, status: 'available', x: 80, y: 420, shape: 'round' },
-  { id: 't11', number: 11, seats: 4, status: 'reserved', x: 220, y: 410, shape: 'square' },
-  { id: 't12', number: 12, seats: 8, status: 'available', x: 430, y: 420, shape: 'rectangle', label: 'VIP' },
-  { id: 't13', number: 13, seats: 2, status: 'occupied', x: 700, y: 420, shape: 'round' },
+  { id: 't1',  number: 1,  seats: 2, current_guests: 0, status: 'available', x: 80,  y: 80,  shape: 'round' },
+  { id: 't2',  number: 2,  seats: 2, current_guests: 2, status: 'occupied',  x: 220, y: 80,  shape: 'round' },
+  { id: 't3',  number: 3,  seats: 4, current_guests: 0, status: 'available', x: 380, y: 70,  shape: 'square' },
+  { id: 't4',  number: 4,  seats: 4, current_guests: 0, status: 'available', x: 560, y: 70,  shape: 'square' },
+  { id: 't5',  number: 5,  seats: 2, current_guests: 0, status: 'available', x: 740, y: 80,  shape: 'round' },
+  { id: 't6',  number: 6,  seats: 6, current_guests: 5, status: 'occupied',  x: 80,  y: 250, shape: 'rectangle' },
+  { id: 't7',  number: 7,  seats: 4, current_guests: 0, status: 'available', x: 300, y: 240, shape: 'square' },
+  { id: 't8',  number: 8,  seats: 4, current_guests: 0, status: 'available', x: 480, y: 240, shape: 'square' },
+  { id: 't9',  number: 9,  seats: 6, current_guests: 4, status: 'occupied',  x: 660, y: 250, shape: 'rectangle' },
+  { id: 't10', number: 10, seats: 2, current_guests: 0, status: 'available', x: 80,  y: 420, shape: 'round' },
+  { id: 't11', number: 11, seats: 4, current_guests: 0, status: 'available', x: 220, y: 410, shape: 'square' },
+  { id: 't12', number: 12, seats: 8, current_guests: 0, status: 'available', x: 430, y: 420, shape: 'rectangle', label: 'VIP' },
+  { id: 't13', number: 13, seats: 2, current_guests: 2, status: 'occupied',  x: 700, y: 420, shape: 'round' },
 ];
 
 export const mockOrders: Order[] = [

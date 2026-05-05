@@ -1,4 +1,4 @@
-export type TableStatus = 'available' | 'occupied' | 'reserved' | 'cleaning';
+export type TableStatus = 'available' | 'occupied';
 export type ReservationStatus = 'pending' | 'confirmed' | 'seated' | 'completed' | 'cancelled';
 export type MenuCategory = 'starters' | 'mains' | 'salads' | 'desserts' | 'drinks';
 
@@ -6,14 +6,13 @@ export interface Table {
   id: string;
   number: number;
   seats: number;
+  current_guests: number;
   status: TableStatus;
   x: number;
   y: number;
   shape: 'round' | 'square' | 'rectangle';
   label?: string;
   current_order_id?: string;
-  reserved_at?: string;
-  reserved_by?: string;
 }
 
 export interface Order {

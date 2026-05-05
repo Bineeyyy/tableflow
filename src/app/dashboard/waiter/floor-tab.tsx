@@ -3,34 +3,13 @@
 import { useState } from 'react';
 import { Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { updateTableStatus } from '@/lib/supabase/queries';
-import type { Table, TableStatus } from '@/types';
-
-// Tap cycle for waiter quick-flip. Skips 'reserved' — that's a reservation
-// concept, not something a waiter sets directly.
-const NEXT_STATUS: Record<TableStatus, TableStatus> = {
-  available: 'occupied',
-  occupied:  'cleaning',
-  cleaning:  'available',
-  reserved:  'occupied',
-};
-
-const STATUS_LABEL: Record<TableStatus, string> = {
-  available: 'Ελεύθερο',
-  occupied:  'Κατειλημμένο',
-  reserved:  'Κρατημένο',
-  cleaning:  'Καθαρισμός',
-};
-
-const STATUS_STYLES: Record<TableStatus, { bg: string; text: string; ring: string; chip: string }> = {
-  available: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', ring: 'ring-emerald-500/30', chip: 'bg-emerald-500' },
-  occupied:  { bg: 'bg-red-500/10',     text: 'text-red-400',     ring: 'ring-red-500/30',     chip: 'bg-red-500' },
-  cleaning:  { bg: 'bg-blue-500/10',    text: 'text-blue-400',    ring: 'ring-blue-500/30',    chip: 'bg-blue-500' },
-  reserved:  { bg: 'bg-[#F97316]/10',   text: 'text-[#F97316]',   ring: 'ring-[#F97316]/30',   chip: 'bg-[#F97316]' },
-};
+import { setTableOccupancy } from '@/app/actions/waiter';
+import { OccupyModal } from '@/components/ui/occupy-modal';
+import type { Table } from '@/types';
 
 export function FloorTab({ tables }: { tables: Table[] }) {
   const [pending, setPending] = useState<Set<string>>(new Set());
+  const [occupyTarget, setOccupyTarget] = useState<Table | null>(null);
 
   if (tables.length === 0) {
     return (
@@ -40,64 +19,74 @@ export function FloorTab({ tables }: { tables: Table[] }) {
     );
   }
 
-  const handleCycle = async (table: Table) => {
+  const startPending = (id: string) =>
+    setPending(prev => { const next = new Set(prev); next.add(id); return next; });
+  const endPending = (id: string) =>
+    setPending(prev => { const next = new Set(prev); next.delete(id); return next; });
+
+  const handleTap = (table: Table) => {
     if (pending.has(table.id)) return;
-    setPending(prev => new Set(prev).add(table.id));
+    if (table.status === 'occupied') {
+      // Free immediately, no confirmation.
+      startPending(table.id);
+      setTableOccupancy(table.id, { occupied: false }).finally(() => endPending(table.id));
+    } else {
+      setOccupyTarget(table);
+    }
+  };
+
+  const confirmOccupy = async (guests: number) => {
+    if (!occupyTarget) return;
+    startPending(occupyTarget.id);
+    setOccupyTarget(null);
     try {
-      await updateTableStatus(table.id, NEXT_STATUS[table.status]);
-    } catch (err) {
-      console.error('[waiter] cycle status failed', err);
+      await setTableOccupancy(occupyTarget.id, { occupied: true, guests });
     } finally {
-      setPending(prev => {
-        const next = new Set(prev); next.delete(table.id); return next;
-      });
+      endPending(occupyTarget.id);
     }
   };
 
   const counts = {
     available: tables.filter(t => t.status === 'available').length,
     occupied:  tables.filter(t => t.status === 'occupied').length,
-    reserved:  tables.filter(t => t.status === 'reserved').length,
-    cleaning:  tables.filter(t => t.status === 'cleaning').length,
   };
 
   return (
     <div className="px-4 py-4 space-y-4">
       {/* Status counts */}
-      <div className="grid grid-cols-4 gap-2 text-center">
-        {(['available', 'occupied', 'reserved', 'cleaning'] as TableStatus[]).map(s => {
-          const styles = STATUS_STYLES[s];
-          return (
-            <div key={s} className={cn('rounded-lg p-2', styles.bg)}>
-              <div className={cn('text-lg font-bold tabular-nums', styles.text)}>{counts[s]}</div>
-              <div className="text-[9px] uppercase tracking-wide text-white/50 font-semibold mt-0.5">
-                {STATUS_LABEL[s].slice(0, 8)}
-              </div>
-            </div>
-          );
-        })}
+      <div className="grid grid-cols-2 gap-2 text-center">
+        <div className="rounded-lg p-2 bg-emerald-500/10">
+          <div className="text-lg font-bold tabular-nums text-emerald-400">{counts.available}</div>
+          <div className="text-[10px] uppercase tracking-wide text-white/50 font-semibold mt-0.5">Ελεύθερα</div>
+        </div>
+        <div className="rounded-lg p-2 bg-red-500/10">
+          <div className="text-lg font-bold tabular-nums text-red-400">{counts.occupied}</div>
+          <div className="text-[10px] uppercase tracking-wide text-white/50 font-semibold mt-0.5">Κατειλημμ.</div>
+        </div>
       </div>
 
       {/* 2-col table grid */}
       <div className="grid grid-cols-2 gap-3">
         {tables.map(t => {
-          const styles = STATUS_STYLES[t.status];
+          const free = t.status === 'available';
           const isPending = pending.has(t.id);
           return (
             <button
               key={t.id}
-              onClick={() => handleCycle(t)}
+              onClick={() => handleTap(t)}
               disabled={isPending}
               className={cn(
-                'relative bg-white/5 hover:bg-white/[0.07] rounded-xl p-4 border border-white/10 ring-2 transition-all active:scale-[0.97] text-left',
-                styles.ring,
+                'relative bg-white/5 hover:bg-white/[0.07] rounded-xl p-4 border ring-2 transition-all active:scale-[0.97] text-left',
+                free
+                  ? 'border-emerald-500/30 ring-emerald-500/20'
+                  : 'border-red-500/30 ring-red-500/20',
                 isPending && 'opacity-60',
               )}
             >
               {/* Status chip */}
               <div className="flex items-center justify-between mb-3">
                 <span className="text-[11px] uppercase tracking-[0.12em] text-white/50 font-bold">Τραπ.</span>
-                <span className={cn('w-2.5 h-2.5 rounded-full', styles.chip)} />
+                <span className={cn('w-2.5 h-2.5 rounded-full', free ? 'bg-emerald-500' : 'bg-red-500')} />
               </div>
 
               {/* Table number */}
@@ -105,18 +94,22 @@ export function FloorTab({ tables }: { tables: Table[] }) {
                 {t.number}
               </div>
 
-              {/* Seats */}
-              <div className="flex items-center gap-1.5 mt-2 text-white/60 text-[12px] font-medium">
-                <Users size={12} />
-                {t.seats} άτομα
+              {/* Occupancy: guests / seats */}
+              <div className="flex items-center gap-1.5 mt-2 text-white/70 text-[13px] font-bold">
+                <Users size={13} />
+                <span className="tabular-nums">
+                  {free ? `0 / ${t.seats}` : `${t.current_guests} / ${t.seats}`}
+                </span>
               </div>
 
-              {/* Status (tap target communicates the action) */}
+              {/* Status pill */}
               <div className={cn(
                 'mt-3 px-2.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider text-center',
-                styles.bg, styles.text,
+                free
+                  ? 'bg-emerald-500/10 text-emerald-400'
+                  : 'bg-red-500/10 text-red-400',
               )}>
-                {STATUS_LABEL[t.status]}
+                {free ? 'Ελεύθερο' : 'Κατειλημμένο'}
               </div>
             </button>
           );
@@ -126,6 +119,15 @@ export function FloorTab({ tables }: { tables: Table[] }) {
       <p className="text-center text-[11px] text-white/30 pt-2">
         Πάτησε ένα τραπέζι για αλλαγή κατάστασης
       </p>
+
+      {occupyTarget && (
+        <OccupyModal
+          tableNumber={occupyTarget.number}
+          seats={occupyTarget.seats}
+          onPick={confirmOccupy}
+          onClose={() => setOccupyTarget(null)}
+        />
+      )}
     </div>
   );
 }
