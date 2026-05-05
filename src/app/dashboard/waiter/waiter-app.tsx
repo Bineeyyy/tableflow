@@ -1,28 +1,25 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { LayoutGrid, CalendarDays, ClipboardList, User, Plus, X } from 'lucide-react';
+import { LayoutGrid, CalendarDays, User, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import type { Table, Reservation } from '@/types';
 import type { Tables } from '@/types/database.types';
 import { FloorTab } from './floor-tab';
 import { ReservationsTab } from './reservations-tab';
-import { OrdersTab } from './orders-tab';
 import { ProfileTab } from './profile-tab';
 import { WalkinModal } from './walkin-modal';
 
-type DbOrder = Tables<'orders'>;
 type DbTable = Tables<'restaurant_tables'>;
 type DbReservation = Tables<'reservations'>;
 
-type Tab = 'floor' | 'reservations' | 'orders' | 'profile';
+type Tab = 'floor' | 'reservations' | 'profile';
 
 const NAV: { key: Tab; label: string; icon: React.ElementType }[] = [
-  { key: 'floor',        label: 'Κάτοψη',      icon: LayoutGrid },
-  { key: 'reservations', label: 'Κρατήσεις',   icon: CalendarDays },
-  { key: 'orders',       label: 'Παραγγελίες', icon: ClipboardList },
-  { key: 'profile',      label: 'Προφίλ',      icon: User },
+  { key: 'floor',        label: 'Κάτοψη',    icon: LayoutGrid },
+  { key: 'reservations', label: 'Κρατήσεις', icon: CalendarDays },
+  { key: 'profile',      label: 'Προφίλ',    icon: User },
 ];
 
 function mapTable(t: DbTable): Table {
@@ -47,18 +44,16 @@ type Props = {
   restaurantName: string;
   initialTables: Table[];
   initialReservations: Reservation[];
-  initialOpenOrders: DbOrder[];
   userEmail: string;
 };
 
 export function WaiterApp({
   restaurantId, restaurantName,
-  initialTables, initialReservations, initialOpenOrders, userEmail,
+  initialTables, initialReservations, userEmail,
 }: Props) {
   const [tab, setTab] = useState<Tab>('floor');
   const [tables, setTables] = useState<Table[]>(initialTables);
   const [reservations, setReservations] = useState<Reservation[]>(initialReservations);
-  const [orders, setOrders] = useState<DbOrder[]>(initialOpenOrders);
   const [walkinOpen, setWalkinOpen] = useState(false);
   const [live, setLive] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -126,28 +121,6 @@ export function WaiterApp({
           }
         },
       )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` },
-        (payload) => {
-          if (payload.eventType === 'DELETE') {
-            const id = (payload.old as { id?: string }).id;
-            if (id) setOrders(prev => prev.filter(o => o.id !== id));
-            return;
-          }
-          const row = payload.new as DbOrder;
-          setOrders(prev => {
-            const idx = prev.findIndex(o => o.id === row.id);
-            // Drop closed/cancelled orders from the open list.
-            if (row.status !== 'open') {
-              if (idx === -1) return prev;
-              return prev.filter(o => o.id !== row.id);
-            }
-            if (idx === -1) return [...prev, row];
-            const next = prev.slice(); next[idx] = row; return next;
-          });
-        },
-      )
       .subscribe(status => setLive(status === 'SUBSCRIBED'));
 
     return () => { supabase.removeChannel(channel); };
@@ -180,7 +153,6 @@ export function WaiterApp({
         <main className="flex-1 overflow-y-auto pb-24">
           {tab === 'floor' && <FloorTab tables={tables} onTablePatch={applyTablePatch} />}
           {tab === 'reservations' && <ReservationsTab reservations={reservations} tables={tables} />}
-          {tab === 'orders' && <OrdersTab orders={orders} tables={tables} />}
           {tab === 'profile' && <ProfileTab userEmail={userEmail} restaurantName={restaurantName} />}
         </main>
 
@@ -194,10 +166,10 @@ export function WaiterApp({
           </div>
         )}
 
-        {/* Floating action button: walk-in */}
+        {/* Floating action button: walk-in (seat without reservation) */}
         <button
           onClick={() => setWalkinOpen(true)}
-          aria-label="Νέα παραγγελία (walk-in)"
+          aria-label="Νέοι πελάτες χωρίς κράτηση"
           className="absolute bottom-24 right-5 w-14 h-14 rounded-full bg-[#F97316] hover:bg-[#EA670D] active:scale-95 transition-all shadow-2xl shadow-[#F97316]/50 flex items-center justify-center text-white"
         >
           <Plus size={26} strokeWidth={2.6} />

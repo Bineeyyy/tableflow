@@ -40,7 +40,7 @@ export function WalkinModal({
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <Users size={18} className="text-[#F97316]" />
-            <h2 className="text-[16px] font-extrabold text-white tracking-tight">Νέα παραγγελία</h2>
+            <h2 className="text-[16px] font-extrabold text-white tracking-tight">Νέοι πελάτες</h2>
           </div>
           <button onClick={onClose} className="text-white/50 hover:text-white p-1">
             <X size={18} />

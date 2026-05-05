@@ -68,8 +68,9 @@ export async function setTableOccupancy(tableId: string, params:
   return { success: true }
 }
 
-// Walk-in: assign the first available table that fits the party size and open
-// an order on it. Returns the assigned table number so the UI can show it.
+// Walk-in: assign the smallest available table that fits the party and flip it
+// to occupied. Returns the assigned table number so the UI can show it.
+// (No order is created — the orders module has been removed from the app.)
 export async function createWalkin(guests: number) {
   if (guests < 1 || guests > 20) return { error: 'Μη έγκυρος αριθμός ατόμων' }
 
@@ -98,18 +99,6 @@ export async function createWalkin(guests: number) {
     return { error: `Σφάλμα: ${pickErr.message}` }
   }
   if (!candidate) return { error: 'Δεν υπάρχει διαθέσιμο τραπέζι αυτής της χωρητικότητας' }
-
-  const { error: orderErr } = await supabase.from('orders').insert({
-    restaurant_id: restaurantId,
-    table_id: candidate.id,
-    status: 'open',
-    guests,
-    created_by: user.id,
-  })
-  if (orderErr) {
-    console.error('[waiter] open order failed:', orderErr)
-    return { error: `Σφάλμα παραγγελίας: ${orderErr.message}` }
-  }
 
   const { error: statusErr } = await supabase
     .from('restaurant_tables')

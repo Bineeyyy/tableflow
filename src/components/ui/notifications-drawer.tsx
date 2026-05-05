@@ -3,14 +3,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  X, Bell, Loader2, CalendarDays, UtensilsCrossed, Users, Clock,
+  X, Bell, Loader2, CalendarDays, UtensilsCrossed, Clock,
   CheckCircle2, AlertCircle, XCircle,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { Tables } from '@/types/database.types';
 
 type DbReservation = Tables<'reservations'>;
-type DbOrder = Tables<'orders'>;
 
 interface Props {
   isOpen: boolean;
@@ -18,7 +17,7 @@ interface Props {
   onChange?: (unread: number) => void;
 }
 
-type NotifKind = 'reservation_new' | 'reservation_status' | 'order_open';
+type NotifKind = 'reservation_new' | 'reservation_status';
 
 interface Notif {
   id: string;
@@ -62,7 +61,6 @@ const STATUS_ICON: Record<DbReservation['status'], React.ElementType> = {
 export function NotificationsDrawer({ isOpen, onClose, onChange }: Props) {
   const router = useRouter();
   const [reservations, setReservations] = useState<DbReservation[]>([]);
-  const [orders, setOrders] = useState<DbOrder[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
@@ -83,21 +81,13 @@ export function NotificationsDrawer({ isOpen, onClose, onChange }: Props) {
       try {
         const sb = createClient();
         const cutoff = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
-        const [rRes, oRes] = await Promise.all([
-          sb.from('reservations')
-            .select('*')
-            .gte('updated_at', cutoff)
-            .order('updated_at', { ascending: false })
-            .limit(20),
-          sb.from('orders')
-            .select('*')
-            .eq('status', 'open')
-            .order('opened_at', { ascending: false })
-            .limit(10),
-        ]);
+        const rRes = await sb.from('reservations')
+          .select('*')
+          .gte('updated_at', cutoff)
+          .order('updated_at', { ascending: false })
+          .limit(20);
         if (cancelled) return;
         setReservations(rRes.data ?? []);
-        setOrders(oRes.data ?? []);
         setLoaded(true);
       } catch (err) {
         console.error('[notifications] fetch failed', err);
@@ -127,22 +117,9 @@ export function NotificationsDrawer({ isOpen, onClose, onChange }: Props) {
         href: '/dashboard/reservations',
       });
     }
-    for (const o of orders) {
-      list.push({
-        id: `o-${o.id}`,
-        kind: 'order_open',
-        title: `Ανοιχτή παραγγελία`,
-        detail: `${o.guests ?? 0} άτομα · σε εξέλιξη`,
-        ts: new Date(o.opened_at).getTime(),
-        iconBg: 'bg-[#0A0A0A]',
-        Icon: UtensilsCrossed,
-        iconColor: 'text-white',
-        href: '/dashboard/orders',
-      });
-    }
     list.sort((a, b) => b.ts - a.ts);
     return list.slice(0, 30);
-  }, [reservations, orders]);
+  }, [reservations]);
 
   // Surface unread count to parent (so the bell can show a dot)
   useEffect(() => {

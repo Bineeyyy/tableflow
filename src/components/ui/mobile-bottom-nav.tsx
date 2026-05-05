@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, Users, ClipboardList, Settings } from 'lucide-react';
+import { LayoutGrid, Users, UtensilsCrossed, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const ITEMS = [
-  { href: '/dashboard',              icon: LayoutGrid,    label: 'Κάτοψη' },
-  { href: '/dashboard/reservations', icon: Users,         label: 'Κρατήσεις' },
-  { href: '/dashboard/orders',       icon: ClipboardList, label: 'Παραγγελίες' },
-  { href: '/dashboard/settings',     icon: Settings,      label: 'Ρυθμίσεις' },
+  { href: '/dashboard',              icon: LayoutGrid,       label: 'Κάτοψη' },
+  { href: '/dashboard/reservations', icon: Users,            label: 'Κρατήσεις' },
+  { href: '/dashboard/menu',         icon: UtensilsCrossed,  label: 'Μενού' },
+  { href: '/dashboard/settings',     icon: Settings,         label: 'Ρυθμίσεις' },
 ];
 
 export function MobileBottomNav() {

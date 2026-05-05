@@ -7,7 +7,6 @@ import { logout } from '@/app/actions/auth';
 import { useMobileNav } from '@/lib/mobile-nav-context';
 import {
   LayoutGrid,
-  ClipboardList,
   Users,
   BarChart3,
   Settings,
@@ -20,7 +19,6 @@ import {
 
 const NAV_ITEMS = [
   { href: '/dashboard', icon: LayoutGrid, label: 'Κάτοψη', badge: null },
-  { href: '/dashboard/orders', icon: ClipboardList, label: 'Παραγγελίες', badge: '4' },
   { href: '/dashboard/menu', icon: UtensilsCrossed, label: 'Μενού', badge: null },
   { href: '/dashboard/reservations', icon: Users, label: 'Κρατήσεις', badge: '2' },
   { href: '/dashboard/reports', icon: BarChart3, label: 'Αναφορές', badge: null },

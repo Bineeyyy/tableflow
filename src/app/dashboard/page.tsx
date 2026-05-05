@@ -7,9 +7,12 @@ import {
   getMyRestaurant,
   getTablesForRestaurant,
   getReservationsForRestaurant,
-  getOpenOrdersForRestaurant,
 } from '@/lib/supabase/server-queries';
 import { UtensilsCrossed, Users, TrendingUp, Clock } from 'lucide-react';
+
+// Per-cover spend used to estimate today's revenue from confirmed reservations.
+// Roughly the average ticket size for a casual taverna cover.
+const ESTIMATED_REVENUE_PER_RESERVATION = 30;
 
 export default async function DashboardPage() {
   const restaurant = await getMyRestaurant();
@@ -31,10 +34,9 @@ export default async function DashboardPage() {
 
   const today = new Date().toISOString().split('T')[0];
 
-  const [tables, allReservations, openOrders] = await Promise.all([
+  const [tables, allReservations] = await Promise.all([
     getTablesForRestaurant(restaurant.id),
     getReservationsForRestaurant(restaurant.id),
-    getOpenOrdersForRestaurant(restaurant.id),
   ]);
 
   const todayReservations = allReservations.filter(r => r.date === today);
@@ -42,9 +44,13 @@ export default async function DashboardPage() {
   const occupied  = tables.filter(t => t.status === 'occupied').length;
   const available = tables.filter(t => t.status === 'available').length;
 
-  const totalGuests  = openOrders.reduce((sum, o) => sum + o.guests, 0);
-  const totalRevenue = openOrders.reduce((sum, o) => sum + Number(o.total), 0);
-  const pendingReservations = todayReservations.filter(r => r.status === 'pending' || r.status === 'confirmed').length;
+  // Reservation-derived metrics — replaces the order-sourced KPIs.
+  const activeReservations = todayReservations.filter(
+    r => r.status !== 'cancelled' && r.status !== 'completed'
+  );
+  const expectedGuests   = activeReservations.reduce((sum, r) => sum + r.guests, 0);
+  const reservationCount = activeReservations.length;
+  const estimatedRevenue = reservationCount * ESTIMATED_REVENUE_PER_RESERVATION;
 
   return (
     <>
@@ -59,8 +65,8 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-4">
           <StatCard title="Κατειλημμένα" value={`${occupied}/${tables.length}`} subtitle="τραπέζια σε χρήση" icon={UtensilsCrossed} />
           <StatCard title="Διαθέσιμα" value={available} subtitle="τραπέζια ελεύθερα" icon={Clock} />
-          <StatCard title="Επισκέπτες" value={totalGuests} subtitle="άτομα αυτή τη στιγμή" icon={Users} />
-          <StatCard title="Τζίρος Σήμερα" value={formatCurrency(totalRevenue)} subtitle={`${pendingReservations} κρατήσεις σήμερα`} icon={TrendingUp} />
+          <StatCard title="Επισκέπτες Σήμερα" value={expectedGuests} subtitle={`${reservationCount} κρατήσεις`} icon={Users} />
+          <StatCard title="Τζίρος Σήμερα" value={formatCurrency(estimatedRevenue)} subtitle={`εκτίμηση από ${reservationCount} κρατήσεις`} icon={TrendingUp} />
         </div>
 
         {/* Floor Plan */}
