@@ -2,11 +2,38 @@ import { TopBar } from '@/components/ui/topbar';
 import { SubscribeButton } from '@/components/billing/subscribe-button';
 import { PortalButton } from '@/components/billing/portal-button';
 import { getMyRestaurant } from '@/lib/supabase/server-queries';
+import { stripe } from '@/lib/stripe';
 import {
   Check, X, Zap, Building2, Star,
   CreditCard, Shield, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// Read the live price from Stripe so the displayed amount always matches what
+// users will be charged at checkout. Falls back to the marketing price (29€)
+// if Stripe isn't reachable or the env var isn't set.
+async function getProPriceLabel(): Promise<{ amount: string; interval: string }> {
+  const FALLBACK = { amount: '29€', interval: '/μήνα' };
+  const priceId = process.env.STRIPE_PRO_PRICE_ID;
+  if (!priceId || !process.env.STRIPE_SECRET_KEY) return FALLBACK;
+  try {
+    const price = await stripe.prices.retrieve(priceId);
+    if (!price.unit_amount || !price.currency) return FALLBACK;
+    const amount = (price.unit_amount / 100).toLocaleString('el-GR', {
+      style: 'currency',
+      currency: price.currency.toUpperCase(),
+      maximumFractionDigits: price.unit_amount % 100 === 0 ? 0 : 2,
+    });
+    const interval =
+      price.recurring?.interval === 'year' ? '/έτος' :
+      price.recurring?.interval === 'week' ? '/εβδομάδα' :
+      '/μήνα';
+    return { amount, interval };
+  } catch (err) {
+    console.error('[billing] failed to read Stripe price', err);
+    return FALLBACK;
+  }
+}
 
 const PLAN_META = {
   free: {
@@ -160,6 +187,7 @@ export default async function BillingPage({
   const subStatus = restaurant?.subscription_status ?? null;
   const hasCustomer = !!restaurant?.stripe_customer_id;
   const { success } = await searchParams;
+  const proPrice = await getProPriceLabel();
 
   return (
     <>
@@ -206,8 +234,12 @@ export default async function BillingPage({
                   </div>
                   <h3 className={cn('text-xl font-bold', meta.headerText)}>{meta.name}</h3>
                   <div className="flex items-baseline gap-1 mt-2">
-                    <span className={cn('text-4xl font-extrabold', meta.headerText)}>{meta.price}</span>
-                    <span className={cn('text-sm', meta.subText)}>{meta.period}</span>
+                    <span className={cn('text-4xl font-extrabold', meta.headerText)}>
+                      {key === 'pro' ? proPrice.amount : meta.price}
+                    </span>
+                    <span className={cn('text-sm', meta.subText)}>
+                      {key === 'pro' ? proPrice.interval : meta.period}
+                    </span>
                   </div>
                   <p className={cn('text-sm mt-2', meta.subText)}>{meta.description}</p>
                 </div>

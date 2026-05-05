@@ -15,9 +15,21 @@ export function SubscribeButton({ plan, className }: { plan: string; className?:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan }),
       });
-      const { url, error } = await res.json();
-      if (error) { alert(error); return; }
-      window.location.href = url;
+      let payload: { url?: string; error?: string } = {};
+      try {
+        payload = await res.json();
+      } catch {
+        alert(`Σφάλμα checkout (HTTP ${res.status}). Δοκιμάστε ξανά.`);
+        return;
+      }
+      if (!res.ok || payload.error || !payload.url) {
+        alert(payload.error ?? `Σφάλμα checkout (HTTP ${res.status})`);
+        return;
+      }
+      window.location.href = payload.url;
+    } catch (err) {
+      console.error('[subscribe] checkout failed', err);
+      alert('Δεν ήταν δυνατή η σύνδεση με τον server. Δοκιμάστε ξανά.');
     } finally {
       setLoading(false);
     }
