@@ -18,10 +18,16 @@ export default function DashboardLoading() {
       <div className="flex-1 overflow-hidden p-6 space-y-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[0, 1, 2, 3].map(i => (
-            <div key={i} className="bg-white rounded-lg border-2 border-[#F97316] p-5 shadow-card">
-              <div className="h-3 w-20 bg-[#F8F8F8] rounded mb-3" />
-              <div className="h-8 w-24 bg-[#F8F8F8] rounded" />
-              <div className="h-3 w-32 bg-[#F8F8F8] rounded mt-3" />
+            <div key={i} className="bg-white rounded-xl border-2 border-[#F97316] p-5 kpi-card relative overflow-hidden">
+              <span aria-hidden className="pointer-events-none absolute -top-14 -right-14 w-36 h-36 rounded-full bg-[#F97316]/[0.06] blur-2xl" />
+              <div className="flex items-start justify-between gap-3 relative">
+                <div className="flex-1 space-y-3">
+                  <div className="h-3 w-20 bg-[#F8F8F8] rounded" />
+                  <div className="h-9 w-24 bg-[#F8F8F8] rounded" />
+                  <div className="h-3 w-32 bg-[#F8F8F8] rounded" />
+                </div>
+                <div className="w-11 h-11 rounded-lg bg-[#F97316]/30 flex-shrink-0" />
+              </div>
             </div>
           ))}
         </div>
