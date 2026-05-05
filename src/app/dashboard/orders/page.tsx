@@ -28,10 +28,10 @@ export default function OrdersPage() {
   return (
     <>
       <TopBar title="Παραγγελίες" subtitle="Ενεργές παραγγελίες τραπεζιών" />
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-6">
 
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-4">
           <StatCard title="Ενεργές" value={open.length} subtitle="ανοιχτές παραγγελίες" icon={UtensilsCrossed} />
           <StatCard title="Σύνολο" value={formatCurrency(totalRevenue)} subtitle="τρέχων τζίρος" icon={TrendingUp} />
           <StatCard title="Επισκέπτες" value={totalGuests} subtitle="άτομα εξυπηρετούνται" icon={Users} />

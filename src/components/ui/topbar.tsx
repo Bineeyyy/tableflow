@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Bell, Search } from 'lucide-react';
+import { Bell, Search, Menu } from 'lucide-react';
 import { SearchDrawer } from './search-drawer';
 import { NotificationsDrawer } from './notifications-drawer';
+import { useMobileNav } from '@/lib/mobile-nav-context';
 
 interface TopBarProps {
   title: string;
@@ -15,6 +16,7 @@ export function TopBar({ title, subtitle }: TopBarProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [unread, setUnread] = useState(0);
+  const { setOpen: setMobileNavOpen } = useMobileNav();
 
   useEffect(() => {
     const fmt = new Intl.DateTimeFormat('el-GR', {
@@ -47,10 +49,19 @@ export function TopBar({ title, subtitle }: TopBarProps) {
 
   return (
     <>
-      <header className="h-16 bg-white border-b border-[#E5E7EB] px-6 flex items-center justify-between flex-shrink-0">
-        <div>
-          <h2 className="text-[17px] font-bold text-[#0A0A0A] tracking-tight leading-none">{title}</h2>
-          {subtitle && <p className="text-[12px] text-[#6B7280] mt-1">{subtitle}</p>}
+      <header className="h-16 bg-white border-b border-[#E5E7EB] px-4 md:px-6 flex items-center justify-between flex-shrink-0 gap-3">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <button
+            onClick={() => setMobileNavOpen(true)}
+            aria-label="Άνοιγμα μενού"
+            className="md:hidden -ml-1.5 p-2 rounded-md text-[#0A0A0A] hover:bg-[#F8F8F8] flex-shrink-0"
+          >
+            <Menu size={20} strokeWidth={2.2} />
+          </button>
+          <div className="min-w-0">
+            <h2 className="text-[15px] md:text-[17px] font-bold text-[#0A0A0A] tracking-tight leading-none truncate">{title}</h2>
+            {subtitle && <p className="text-[11px] md:text-[12px] text-[#6B7280] mt-1 truncate">{subtitle}</p>}
+          </div>
         </div>
 
         <div className="flex items-center gap-2">

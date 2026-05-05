@@ -25,7 +25,7 @@ export default function DashboardLoading() {
             </div>
           ))}
         </div>
-        <div className="bg-white rounded-lg border border-[#E5E7EB] shadow-card p-4" style={{ minHeight: 520 }}>
+        <div className="bg-white rounded-lg border-2 border-[#F97316] shadow-card p-4" style={{ minHeight: 520 }}>
           <div className="h-full rounded-lg" style={{ background: '#0F0F0F' }} />
         </div>
       </div>

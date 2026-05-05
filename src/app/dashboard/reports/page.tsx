@@ -39,7 +39,7 @@ export default function ReportsPage() {
   return (
     <>
       <TopBar title="Αναφορές" subtitle="Στατιστικά & αναλυτικά στοιχεία" />
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-6">
 
         {/* Period selector */}
         <div className="flex gap-2">
@@ -59,7 +59,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-4">
           <StatCard title="Τζίρος" value={formatCurrency(totalRevenue * multiplier)} subtitle="συνολικά έσοδα" icon={TrendingUp} trend={{ value: 15, label: 'vs προηγ.' }} />
           <StatCard title="Επισκέπτες" value={totalGuests * multiplier} subtitle="εξυπηρετηθέντες" icon={Users} trend={{ value: 8, label: 'vs προηγ.' }} />
           <StatCard title="Τραπέζια" value={`${occupied}/${mockTables.length}`} subtitle="μέσος όρος πληρότητας" icon={UtensilsCrossed} />

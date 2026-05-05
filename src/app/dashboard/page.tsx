@@ -52,9 +52,9 @@ export default async function DashboardPage() {
         subtitle={restaurant.name}
       />
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-6">
         {/* Stats Row */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-4">
           <StatCard title="Κατειλημμένα" value={`${occupied}/${tables.length}`} subtitle="τραπέζια σε χρήση" icon={UtensilsCrossed} />
           <StatCard title="Διαθέσιμα" value={available} subtitle="τραπέζια ελεύθερα" icon={Clock} />
           <StatCard title="Επισκέπτες" value={totalGuests} subtitle="άτομα αυτή τη στιγμή" icon={Users} />
@@ -62,7 +62,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Floor Plan */}
-        <div className="bg-white rounded-lg p-4 border border-[#E5E7EB] shadow-card flex-1" style={{ minHeight: '520px' }}>
+        <div className="bg-white rounded-lg p-4 border-2 border-[#F97316] shadow-card flex-1" style={{ minHeight: '520px' }}>
           <FloorPlan
             initialTables={tables}
             restaurantId={restaurant.id}

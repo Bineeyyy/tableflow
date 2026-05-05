@@ -192,7 +192,7 @@ export default async function BillingPage({
   return (
     <>
       <TopBar title="Συνδρομή" subtitle="Διαχείριση πλάνου & χρεώσεων" />
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-6">
 
         {/* Post-checkout success notice */}
         {success === '1' && (

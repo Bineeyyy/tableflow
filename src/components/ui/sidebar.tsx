@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { logout } from '@/app/actions/auth';
+import { useMobileNav } from '@/lib/mobile-nav-context';
 import {
   LayoutGrid,
   ClipboardList,
@@ -15,6 +16,7 @@ import {
   LogOut,
   ChevronRight,
   Smartphone,
+  X,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -30,14 +32,34 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { open, setOpen } = useMobileNav();
+  const close = () => setOpen(false);
 
   return (
-    <aside
-      className="w-64 flex flex-col h-screen sticky top-0"
-      style={{ background: '#0A0A0A' }}
-    >
+    <>
+      {/* Mobile backdrop */}
+      <div
+        onClick={close}
+        aria-hidden
+        className={cn(
+          'md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-200',
+          open ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        )}
+      />
+
+      <aside
+        className={cn(
+          'flex flex-col h-screen z-50',
+          // Desktop: sticky 64-wide column in flow
+          'md:sticky md:top-0 md:w-64 md:translate-x-0 md:transition-none',
+          // Mobile: fixed drawer slides in from the left
+          'fixed top-0 left-0 w-72 max-w-[85vw] transition-transform duration-200',
+          open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        )}
+        style={{ background: '#0A0A0A' }}
+      >
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-white/5">
+      <div className="px-5 py-5 border-b border-white/5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-[#F97316] flex items-center justify-center">
             <UtensilsCrossed size={18} className="text-white" strokeWidth={2.4} />
@@ -47,6 +69,13 @@ export function Sidebar() {
             <p className="text-white/40 text-[11px] mt-1 font-medium">Restaurant OS</p>
           </div>
         </div>
+        <button
+          onClick={close}
+          aria-label="Κλείσιμο μενού"
+          className="md:hidden text-white/50 hover:text-white p-1.5 -mr-1.5 rounded-md hover:bg-white/5"
+        >
+          <X size={18} />
+        </button>
       </div>
 
       {/* Restaurant selector */}
@@ -73,6 +102,7 @@ export function Sidebar() {
             <Link
               key={href}
               href={href}
+              onClick={close}
               className={cn(
                 'relative flex items-center justify-between pl-3 pr-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150',
                 isActive
@@ -130,6 +160,7 @@ export function Sidebar() {
           </form>
         </div>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

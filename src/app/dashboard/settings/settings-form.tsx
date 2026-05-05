@@ -129,8 +129,8 @@ export function SettingsForm({ restaurant, tableCount, userEmail }: Props) {
   return (
     <>
       <TopBar title="Ρυθμίσεις" subtitle="Παραμετροποίηση λογαριασμού" />
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-3xl mx-auto space-y-6">
+      <div className="flex-1 overflow-y-auto p-3 md:p-6">
+        <div className="max-w-3xl mx-auto space-y-4 md:space-y-6">
 
           {/* Tabs */}
           <div className="flex gap-1 bg-white rounded-lg border border-[#E5E7EB] shadow-card p-1">
@@ -150,7 +150,7 @@ export function SettingsForm({ restaurant, tableCount, userEmail }: Props) {
           </div>
 
           {/* Tab content */}
-          <div className="bg-white rounded-lg border border-[#E5E7EB] shadow-card p-6 space-y-5">
+          <div className="bg-white rounded-lg border border-[#E5E7EB] shadow-card p-4 md:p-6 space-y-5">
 
             {tab === 'restaurant' && (
               <>
