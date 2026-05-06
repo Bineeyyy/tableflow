@@ -70,7 +70,52 @@ export async function POST(request: NextRequest) {
     api_version: event.api_version,
   });
 
+  // Reject mode-mismatched events: a test-mode dashboard endpoint pointed at
+  // the prod webhook URL (or vice versa) could otherwise mark real restaurants
+  // Pro from a $0 test card. Return 200 so Stripe doesn't retry — the only
+  // recovery is reconfiguring the dashboard endpoint, which retrying won't
+  // fix.
+  const expectLive = process.env.NODE_ENV === 'production';
+  if (event.livemode !== expectLive) {
+    warn('event_mode_mismatch_dropped', {
+      event_id: event.id,
+      type: event.type,
+      event_livemode: event.livemode,
+      expected_livemode: expectLive,
+      hint: 'A Stripe Dashboard endpoint is firing into the wrong environment. Check the test/live mode of the endpoint that owns this URL.',
+    });
+    return NextResponse.json({ received: true, dropped: 'mode_mismatch' });
+  }
+
   const db = createAdminClient();
+
+  // Idempotency gate. Stripe retries any non-2xx with exponential backoff for
+  // up to ~3 days, so a single buggy handler can produce a retry storm. We
+  // claim the event.id here BEFORE running side effects: a unique-violation
+  // means we've already processed (or are processing) this delivery, so we
+  // short-circuit with 200 instead of running side effects twice. The row is
+  // committed before the switch even on handler exception — that's the
+  // intended breaker; lost work after a crash has to be reconciled manually
+  // from logs rather than being retried into an infinite loop.
+  const { error: dedupErr } = await db
+    .from('stripe_webhook_events')
+    .insert({ id: event.id, type: event.type, livemode: event.livemode });
+
+  if (dedupErr) {
+    if (dedupErr.code === '23505') {
+      log('event_duplicate_skipped', { id: event.id, type: event.type });
+      return NextResponse.json({ received: true, duplicate: true });
+    }
+    // Any other DB error here (table missing, network blip) — let Stripe
+    // retry. Returning 500 is safe because we haven't run any handlers yet.
+    err('dedup_insert_failed', {
+      id: event.id,
+      type: event.type,
+      db_error: dedupErr.message,
+      code: dedupErr.code,
+    });
+    return NextResponse.json({ error: 'Dedup insert failed' }, { status: 500 });
+  }
 
   try {
     switch (event.type) {
