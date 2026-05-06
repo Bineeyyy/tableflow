@@ -1,10 +1,23 @@
 'use client';
 
-import Link from 'next/link';
-import { LogOut, ArrowLeft, Shield, Mail } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { LogOut, Monitor, Shield, Mail } from 'lucide-react';
 import { logout } from '@/app/actions/auth';
+import { FORCE_DESKTOP_KEY } from '@/components/ui/mobile-redirect';
 
 export function ProfileTab({ userEmail, restaurantName }: { userEmail: string; restaurantName: string }) {
+  const router = useRouter();
+
+  // Phones normally get bounced from /dashboard back to /dashboard/waiter by
+  // MobileRedirect. Setting the session flag here lets the user opt into the
+  // dense desktop dashboard for the rest of the tab's lifetime.
+  const switchToDesktop = () => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(FORCE_DESKTOP_KEY, 'true');
+    }
+    router.push('/dashboard');
+  };
+
   return (
     <div className="px-5 py-6 space-y-5">
       {/* Avatar */}
@@ -36,14 +49,19 @@ export function ProfileTab({ userEmail, restaurantName }: { userEmail: string; r
         </div>
       </div>
 
-      {/* Back to desktop dashboard */}
-      <Link
-        href="/dashboard"
+      {/* Switch to the desktop dashboard. Sets the force-desktop flag so the
+          MobileRedirect on /dashboard doesn't bounce us straight back. */}
+      <button
+        type="button"
+        onClick={switchToDesktop}
         className="w-full flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[13px] font-bold py-3 rounded-xl transition-all active:scale-[0.98]"
       >
-        <ArrowLeft size={15} />
-        Επιστροφή στο Dashboard
-      </Link>
+        <Monitor size={15} />
+        <span className="flex flex-col items-start leading-tight">
+          <span>Πλήρης Προβολή</span>
+          <span className="text-[10px] font-medium text-white/50">Desktop View</span>
+        </span>
+      </button>
 
       {/* Logout */}
       <form action={logout}>
