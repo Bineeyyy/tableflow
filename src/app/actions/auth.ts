@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
+import { consumeRateLimit, getClientIp } from '@/lib/rate-limit'
 
 const RESTAURANT_COOKIE = 'tf_restaurant_id'
 
@@ -11,6 +12,17 @@ const RESTAURANT_COOKIE = 'tf_restaurant_id'
 // whether the email exists or what specifically went wrong — those have all
 // been used historically for account enumeration and targeted brute force.
 const GENERIC_AUTH_ERROR = 'Λάθος email ή κωδικός.'
+
+// Surfaced when the rate limiter says no. Same Greek copy regardless of which
+// specific limit was hit, so a brute-forcer can't tell which knob to turn.
+const RATE_LIMIT_ERROR = 'Πολλές προσπάθειες. Παρακαλώ δοκιμάστε ξανά σε λίγο.'
+
+// Per-IP windows. Tuned to be permissive for legitimate users on shared NATs
+// (offices, mobile carriers) while still cutting brute-force throughput by 1-2
+// orders of magnitude. If we adopt Upstash later, key these the same way.
+const LOGIN_LIMIT       = { max: 10, windowSeconds: 15 * 60 }  // 10 / 15 min / IP
+const REGISTER_LIMIT    = { max: 5,  windowSeconds: 60 * 60 }  //  5 /  1 hr / IP
+const FORGOT_LIMIT      = { max: 5,  windowSeconds: 60 * 60 }  //  5 /  1 hr / IP
 
 async function cacheRestaurantCookie(
   userId: string,
@@ -42,6 +54,15 @@ export async function login(_: unknown, formData: FormData) {
 
   if (!email || !password) return { error: GENERIC_AUTH_ERROR }
 
+  // Per-IP cap on login attempts. We deliberately do NOT key by email too —
+  // doing so would let an attacker lock a victim out by hitting their email
+  // enough times. The IP-only cap still drops credential-stuffing throughput
+  // dramatically without giving anyone a free DoS lever.
+  const ip = await getClientIp()
+  if (!(await consumeRateLimit(`login:${ip}`, LOGIN_LIMIT.max, LOGIN_LIMIT.windowSeconds))) {
+    return { error: RATE_LIMIT_ERROR }
+  }
+
   // Normal login flow — always password-checked. The previous
   // `email === ADMIN_EMAIL` bypass let anyone who knew the admin's address sign
   // in with no password; that backdoor has been removed. Admin promotion is now
@@ -68,6 +89,13 @@ export async function register(_: unknown, formData: FormData) {
   if (password !== confirmPassword) return { error: 'Οι κωδικοί δεν ταιριάζουν.' }
   if (name.length > 120) return { error: 'Πολύ μεγάλο όνομα.' }
   if (email.length > 254) return { error: 'Πολύ μεγάλη διεύθυνση email.' }
+
+  // Per-IP cap before we spend a Supabase admin call. Limit is tighter than
+  // login — legitimate users register once per device, not five times.
+  const ip = await getClientIp()
+  if (!(await consumeRateLimit(`register:${ip}`, REGISTER_LIMIT.max, REGISTER_LIMIT.windowSeconds))) {
+    return { error: RATE_LIMIT_ERROR }
+  }
 
   try {
     const supabase = await createClient()
@@ -117,6 +145,15 @@ export async function forgotPassword(_: unknown, formData: FormData): Promise<Fo
     // was even well-formed. The form already restricts client-side.
     return { success: true }
   }
+
+  // Per-IP cap. If the limiter says no we silently return success rather than
+  // surfacing a rate-limit message — same enumeration-resistance reasoning as
+  // the rest of this action: every input shape returns success.
+  const ip = await getClientIp()
+  if (!(await consumeRateLimit(`forgot:${ip}`, FORGOT_LIMIT.max, FORGOT_LIMIT.windowSeconds))) {
+    return { success: true }
+  }
+
   const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://tableflow-sigma.vercel.app'}/auth/reset-password`
 
   // Custom SMTP (Resend) is configured on this project, so Supabase enforces

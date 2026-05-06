@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { consumeRateLimit } from '@/lib/rate-limit'
 
 export async function updateProfile(input: { fullName: string }) {
   const supabase = await createClient()
@@ -35,6 +36,13 @@ export async function changePassword(input: {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user || !user.email) return { error: 'Μη εξουσιοδοτημένος' }
+
+  // Per-user cap so a stolen session can't be used to brute-force the current
+  // password via this endpoint. 5 attempts per hour is plenty for a forgetful
+  // owner; an attacker hits the wall on the sixth try.
+  if (!(await consumeRateLimit(`changepw:${user.id}`, 5, 60 * 60))) {
+    return { error: 'Πολλές προσπάθειες. Παρακαλώ δοκιμάστε ξανά σε λίγο.' }
+  }
 
   // Re-authenticate with the current password before allowing a change. This
   // protects against a stolen-session attacker who can't supply the old
