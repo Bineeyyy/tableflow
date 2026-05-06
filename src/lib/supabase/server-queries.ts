@@ -97,6 +97,22 @@ export const getReservationsForRestaurant = cache(async (restaurantId: string): 
   return data.map(mapReservation);
 });
 
+// Count of today's reservations that are still "live" (anything except
+// cancelled/completed). Used by the sidebar badge — kept as a separate
+// query so we don't pull every reservation row just to compute a number.
+export const getTodayActiveReservationCount = cache(async (restaurantId: string): Promise<number> => {
+  const supabase = await createClient();
+  const today = new Date().toISOString().split('T')[0];
+  const { count, error } = await supabase
+    .from('reservations')
+    .select('*', { count: 'exact', head: true })
+    .eq('restaurant_id', restaurantId)
+    .eq('reserved_date', today)
+    .not('status', 'in', '(cancelled,completed)');
+  if (error) return 0;
+  return count ?? 0;
+});
+
 export const getOpenOrdersForRestaurant = cache(async (restaurantId: string): Promise<DbOrder[]> => {
   const supabase = await createClient();
   const { data, error } = await supabase

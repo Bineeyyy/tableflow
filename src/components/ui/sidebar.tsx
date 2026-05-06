@@ -18,19 +18,28 @@ import {
   X,
 } from 'lucide-react';
 
-const NAV_ITEMS = [
-  { href: '/dashboard', icon: LayoutGrid, label: 'Κάτοψη', badge: null },
-  { href: '/dashboard/menu', icon: UtensilsCrossed, label: 'Μενού', badge: null },
-  { href: '/dashboard/reservations', icon: Users, label: 'Κρατήσεις', badge: '2' },
-  { href: '/dashboard/reports', icon: BarChart3, label: 'Αναφορές', badge: null },
-  { href: '/dashboard/billing', icon: CreditCard, label: 'Συνδρομή', badge: null },
-  { href: '/dashboard/settings', icon: Settings, label: 'Ρυθμίσεις', badge: null },
-];
+type NavItem = { href: string; icon: typeof LayoutGrid; label: string; badge: string | null };
 
-export function Sidebar() {
+export function Sidebar({ reservationsBadge = 0 }: { reservationsBadge?: number }) {
   const pathname = usePathname();
   const { open, setOpen } = useMobileNav();
   const close = () => setOpen(false);
+
+  // Reservations badge reflects today's live (non-cancelled, non-completed)
+  // reservation count from Supabase. 0 hides the badge entirely.
+  const navItems: NavItem[] = [
+    { href: '/dashboard', icon: LayoutGrid, label: 'Κάτοψη', badge: null },
+    { href: '/dashboard/menu', icon: UtensilsCrossed, label: 'Μενού', badge: null },
+    {
+      href: '/dashboard/reservations',
+      icon: Users,
+      label: 'Κρατήσεις',
+      badge: reservationsBadge > 0 ? String(reservationsBadge) : null,
+    },
+    { href: '/dashboard/reports', icon: BarChart3, label: 'Αναφορές', badge: null },
+    { href: '/dashboard/billing', icon: CreditCard, label: 'Συνδρομή', badge: null },
+    { href: '/dashboard/settings', icon: Settings, label: 'Ρυθμίσεις', badge: null },
+  ];
 
   return (
     <>
@@ -96,7 +105,7 @@ export function Sidebar() {
         <p className="text-white/30 text-[10px] uppercase tracking-[0.12em] font-semibold px-3 mb-3 md:hidden lg:block">
           Κύριο Μενού
         </p>
-        {NAV_ITEMS.map(({ href, icon: Icon, label, badge }) => {
+        {navItems.map(({ href, icon: Icon, label, badge }) => {
           const isActive = pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
           return (
             <Link
