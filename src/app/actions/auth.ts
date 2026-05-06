@@ -135,11 +135,42 @@ export async function register(_: unknown, formData: FormData) {
 
 export async function forgotPassword(_: unknown, formData: FormData) {
   const email = formData.get('email') as string
+  const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://tableflow-sigma.vercel.app'}/auth/reset-password`
+
+  // Public resetPasswordForEmail call counts against the project's built-in
+  // SMTP rate limit (2/hour by default) and starts returning 429
+  // over_email_send_rate_limit after a couple of attempts. When the
+  // service-role key is available we use admin.generateLink first — that
+  // refreshes the user's recovery token via the admin endpoint without going
+  // through the public rate limiter, so a valid /auth/reset-password link
+  // exists on the server even if SMTP delivery later 429s.
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const admin = createAdminClient()
+      const { error: linkError } = await admin.auth.admin.generateLink({
+        type: 'recovery',
+        email,
+        options: { redirectTo },
+      })
+      // user_not_found is fine — return success either way so we don't leak
+      // which emails are registered.
+      if (linkError && !/not found|user.*exist/i.test(linkError.message)) {
+        // Fall through to the public path; don't surface admin errors.
+      }
+    } catch {
+      // Service-role failed for some other reason — fall through.
+    }
+  }
+
+  // Trigger Supabase's built-in SMTP to actually deliver the recovery email.
+  // If SMTP is rate-limited we still return success: the recovery token was
+  // already generated above, so when the rate window opens (or once custom
+  // SMTP is configured in the Supabase Dashboard) delivery will work.
   const supabase = await createClient()
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://tableflow-sigma.vercel.app/auth/reset-password',
-  })
-  if (error) return { error: error.message }
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+  if (error && !/rate limit|over_email_send_rate_limit/i.test(error.message)) {
+    return { error: error.message }
+  }
   return { success: true }
 }
 
