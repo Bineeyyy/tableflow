@@ -43,19 +43,19 @@ export default function LoginPage() {
           </p>
         </div>
         <div className="relative z-10">
-          <div className="flex gap-8 text-white/50 text-[12px]">
-            <div>
-              <div className="text-[28px] font-extrabold text-white tracking-tight">500+</div>
-              <div className="uppercase tracking-wider mt-1">Εστιατόρια</div>
-            </div>
-            <div>
-              <div className="text-[28px] font-extrabold text-white tracking-tight">50K+</div>
-              <div className="uppercase tracking-wider mt-1">Τραπέζια</div>
-            </div>
-            <div>
-              <div className="text-[28px] font-extrabold text-white tracking-tight">99.9%</div>
-              <div className="uppercase tracking-wider mt-1">Uptime</div>
-            </div>
+          <div className="space-y-3">
+            {[
+              'Κρατήσεις & κάτοψη σε ένα μέρος',
+              'Ενημερώσεις σε πραγματικό χρόνο',
+              'Ασφαλής αποθήκευση δεδομένων',
+            ].map((item) => (
+              <div key={item} className="flex items-center gap-3 text-white/70 text-[14px]">
+                <div className="w-5 h-5 rounded-full bg-[#F97316] flex items-center justify-center flex-shrink-0">
+                  <span className="text-white text-[10px] font-bold">✓</span>
+                </div>
+                {item}
+              </div>
+            ))}
           </div>
         </div>
       </div>
