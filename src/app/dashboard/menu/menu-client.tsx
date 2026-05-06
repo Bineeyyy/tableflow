@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, UtensilsCrossed, Search } from 'lucide-react';
@@ -53,6 +53,10 @@ export function MenuClient({ initialItems, categories }: Props) {
   const [editItem, setEditItem] = useState<MenuItemRow | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  // Synchronous re-entry guard. disabled={saving} alone leaves a window
+  // between the click handler and React re-render where an Enter-key
+  // resubmit can fire a second action.
+  const savingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
@@ -105,12 +109,14 @@ export function MenuClient({ initialItems, categories }: Props) {
   };
 
   const saveItem = async () => {
+    if (savingRef.current) return;
     if (!form.name.trim() || !form.price) return;
     const price = parseFloat(form.price);
     if (!Number.isFinite(price) || price < 0) {
       setError('Μη έγκυρη τιμή');
       return;
     }
+    savingRef.current = true;
     setSaving(true);
     setError(null);
 
@@ -122,40 +128,43 @@ export function MenuClient({ initialItems, categories }: Props) {
       available: form.available,
     };
 
-    if (editItem) {
-      const res = await updateMenuItem(editItem.id, payload);
-      setSaving(false);
-      if (res.error || !res.item) {
-        setError(res.error ?? 'Αποτυχία αποθήκευσης');
-        return;
+    try {
+      if (editItem) {
+        const res = await updateMenuItem(editItem.id, payload);
+        if (res.error || !res.item) {
+          setError(res.error ?? 'Αποτυχία αποθήκευσης');
+          return;
+        }
+        const slug = categories.find(c => c.id === res.item!.category_id)?.slug ?? form.slug;
+        setItems(prev => prev.map(i => i.id === editItem.id ? {
+          id: res.item!.id,
+          name: res.item!.name,
+          description: res.item!.description ?? '',
+          price: res.item!.price,
+          available: res.item!.available,
+          slug,
+        } : i));
+      } else {
+        const res = await createMenuItem(payload);
+        if (res.error || !res.item) {
+          setError(res.error ?? 'Αποτυχία προσθήκης');
+          return;
+        }
+        const slug = categories.find(c => c.id === res.item!.category_id)?.slug ?? form.slug;
+        setItems(prev => [...prev, {
+          id: res.item!.id,
+          name: res.item!.name,
+          description: res.item!.description ?? '',
+          price: res.item!.price,
+          available: res.item!.available,
+          slug,
+        }]);
       }
-      const slug = categories.find(c => c.id === res.item!.category_id)?.slug ?? form.slug;
-      setItems(prev => prev.map(i => i.id === editItem.id ? {
-        id: res.item!.id,
-        name: res.item!.name,
-        description: res.item!.description ?? '',
-        price: res.item!.price,
-        available: res.item!.available,
-        slug,
-      } : i));
-    } else {
-      const res = await createMenuItem(payload);
+      setShowModal(false);
+    } finally {
+      savingRef.current = false;
       setSaving(false);
-      if (res.error || !res.item) {
-        setError(res.error ?? 'Αποτυχία προσθήκης');
-        return;
-      }
-      const slug = categories.find(c => c.id === res.item!.category_id)?.slug ?? form.slug;
-      setItems(prev => [...prev, {
-        id: res.item!.id,
-        name: res.item!.name,
-        description: res.item!.description ?? '',
-        price: res.item!.price,
-        available: res.item!.available,
-        slug,
-      }]);
     }
-    setShowModal(false);
   };
 
   const deleteRow = async (id: string) => {

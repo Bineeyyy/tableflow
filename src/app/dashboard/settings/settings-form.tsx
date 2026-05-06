@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TopBar } from '@/components/ui/topbar';
 import { cn } from '@/lib/utils';
@@ -95,21 +95,37 @@ export function SettingsForm({ restaurant, tableCount, tables, userEmail, userFu
   const [tablesSaved, setTablesSaved] = useState(false);
   const [tablesError, setTablesError] = useState<string | null>(null);
 
+  // Synchronous re-entry guards. setSaving(true) doesn't apply until React
+  // re-renders, so an Enter-key resubmit fired before paint slipped through
+  // disabled={saving} and double-dispatched the server action. Refs mutate
+  // immediately and the `if (ref.current) return` check sees the truthy
+  // value on the second call.
+  const savingRef = useRef(false);
+  const tablesSavingRef = useRef(false);
+  const profileSavingRef = useRef(false);
+  const pwdSavingRef = useRef(false);
+
   const updateRow = <K extends keyof TableRow>(id: string, key: K, value: TableRow[K]) =>
     setTableRows(prev => prev.map(r => r.id === id ? { ...r, [key]: value } : r));
 
   const handleSaveTables = async () => {
+    if (tablesSavingRef.current) return;
+    tablesSavingRef.current = true;
     setTablesSaving(true);
     setTablesError(null);
-    const result = await updateTables(tableRows);
-    setTablesSaving(false);
-    if (result.error) {
-      setTablesError(result.error);
-      return;
+    try {
+      const result = await updateTables(tableRows);
+      if (result.error) {
+        setTablesError(result.error);
+        return;
+      }
+      setTablesSaved(true);
+      setTimeout(() => setTablesSaved(false), 2500);
+      router.refresh();
+    } finally {
+      tablesSavingRef.current = false;
+      setTablesSaving(false);
     }
-    setTablesSaved(true);
-    setTimeout(() => setTablesSaved(false), 2500);
-    router.refresh();
   };
 
   const [restaurantForm, setRestaurantForm] = useState({
@@ -131,59 +147,73 @@ export function SettingsForm({ restaurant, tableCount, tables, userEmail, userFu
   const [pwdError, setPwdError] = useState<string | null>(null);
 
   const handleSaveProfile = async () => {
+    if (profileSavingRef.current) return;
+    profileSavingRef.current = true;
     setProfileSaving(true);
     setProfileError(null);
-    const result = await updateProfile({ fullName: profileName });
-    setProfileSaving(false);
-    if (result.error) {
-      setProfileError(result.error);
-      return;
+    try {
+      const result = await updateProfile({ fullName: profileName });
+      if (result.error) {
+        setProfileError(result.error);
+        return;
+      }
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 2500);
+      router.refresh();
+    } finally {
+      profileSavingRef.current = false;
+      setProfileSaving(false);
     }
-    setProfileSaved(true);
-    setTimeout(() => setProfileSaved(false), 2500);
-    router.refresh();
   };
 
   const handleChangePassword = async () => {
+    if (pwdSavingRef.current) return;
+    pwdSavingRef.current = true;
     setPwdSaving(true);
     setPwdError(null);
-    const result = await changePassword({
-      currentPassword: pwd.current,
-      newPassword: pwd.next,
-    });
-    setPwdSaving(false);
-    if (result.error) {
-      setPwdError(result.error);
-      return;
+    try {
+      const result = await changePassword({
+        currentPassword: pwd.current,
+        newPassword: pwd.next,
+      });
+      if (result.error) {
+        setPwdError(result.error);
+        return;
+      }
+      setPwd({ current: '', next: '' });
+      setPwdSaved(true);
+      setTimeout(() => setPwdSaved(false), 2500);
+    } finally {
+      pwdSavingRef.current = false;
+      setPwdSaving(false);
     }
-    setPwd({ current: '', next: '' });
-    setPwdSaved(true);
-    setTimeout(() => setPwdSaved(false), 2500);
   };
 
   const handleSave = async () => {
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     setSaveError(null);
-
-    const result = await saveRestaurantSettings({
-      name: restaurantForm.name,
-      address: restaurantForm.address,
-      phone: restaurantForm.phone,
-      email: restaurantForm.email,
-      capacity: parseInt(restaurantForm.capacity) || 1,
-      hours,
-    });
-
-    setSaving(false);
-
-    if (result.error) {
-      setSaveError(result.error);
-      return;
+    try {
+      const result = await saveRestaurantSettings({
+        name: restaurantForm.name,
+        address: restaurantForm.address,
+        phone: restaurantForm.phone,
+        email: restaurantForm.email,
+        capacity: parseInt(restaurantForm.capacity) || 1,
+        hours,
+      });
+      if (result.error) {
+        setSaveError(result.error);
+        return;
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+      router.refresh();
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
-
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
-    router.refresh();
   };
 
   const toggleHour = (i: number) => setHours(prev => prev.map((h, idx) => idx === i ? { ...h, open: !h.open } : h));
