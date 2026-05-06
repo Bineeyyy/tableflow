@@ -7,6 +7,8 @@ import type { Tables } from '@/types/database.types';
 type DbTable = Tables<'restaurant_tables'>;
 type DbReservation = Tables<'reservations'>;
 type DbOrder = Tables<'orders'>;
+type DbMenuCategory = Tables<'menu_categories'>;
+type DbMenuItem = Tables<'menu_items'>;
 
 const RESTAURANT_COOKIE = 'tf_restaurant_id';
 
@@ -120,6 +122,30 @@ export const getOpenOrdersForRestaurant = cache(async (restaurantId: string): Pr
     .select('*')
     .eq('restaurant_id', restaurantId)
     .eq('status', 'open');
+  if (error || !data) return [];
+  return data;
+});
+
+export const getMenuCategoriesForRestaurant = cache(async (restaurantId: string): Promise<DbMenuCategory[]> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('menu_categories')
+    .select('*')
+    .eq('restaurant_id', restaurantId)
+    .order('sort_order')
+    .order('created_at');
+  if (error || !data) return [];
+  return data;
+});
+
+export const getMenuItemsForRestaurant = cache(async (restaurantId: string): Promise<DbMenuItem[]> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('menu_items')
+    .select('*')
+    .eq('restaurant_id', restaurantId)
+    .order('sort_order')
+    .order('created_at');
   if (error || !data) return [];
   return data;
 });
