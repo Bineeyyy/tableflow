@@ -139,7 +139,7 @@ export async function seatReservation(reservationId: string, tableId?: string) {
   const supabase = await createClient()
   const { data: reservation, error: rErr } = await supabase
     .from('reservations')
-    .select('id, table_id, party_size, restaurant_id')
+    .select('id, table_id, party_size, restaurant_id, reserved_date, reserved_time')
     .eq('id', reservationId)
     .eq('restaurant_id', restaurantId)
     .maybeSingle()
@@ -160,12 +160,32 @@ export async function seatReservation(reservationId: string, tableId?: string) {
   }
   if (!resolvedTableId) return { error: 'Κανένα διαθέσιμο τραπέζι' }
 
+  // Pre-flight slot check: refuse to seat if another non-terminal reservation
+  // already holds (table, date, time). Mirrors the partial unique index on
+  // reservations so the user gets a clean Greek message instead of a generic
+  // "update failed" when the index would have rejected the UPDATE.
+  const { data: clash } = await supabase
+    .from('reservations')
+    .select('id')
+    .eq('restaurant_id', restaurantId)
+    .eq('table_id', resolvedTableId)
+    .eq('reserved_date', reservation.reserved_date)
+    .eq('reserved_time', reservation.reserved_time)
+    .not('status', 'in', '(cancelled,completed)')
+    .neq('id', reservationId)
+    .limit(1)
+    .maybeSingle()
+  if (clash) return { error: 'Το τραπέζι είναι ήδη κρατημένο για αυτή την ώρα' }
+
   const { error: updErr } = await supabase
     .from('reservations')
     .update({ status: 'seated', table_id: resolvedTableId })
     .eq('id', reservationId)
     .eq('restaurant_id', restaurantId)
   if (updErr) {
+    if (updErr.code === '23505') {
+      return { error: 'Το τραπέζι είναι ήδη κρατημένο για αυτή την ώρα' }
+    }
     console.error('[waiter] seat reservation update failed:', updErr)
     return { error: 'Σφάλμα κατά την ενημέρωση κράτησης.' }
   }

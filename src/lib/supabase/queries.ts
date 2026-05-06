@@ -138,6 +138,14 @@ export async function updateReservationStatus(
   if (error) throw error;
 }
 
+// Thrown when the partial unique index `reservations_table_slot_uniq` rejects a
+// reservation because the same table+date+time is already taken by a non-terminal
+// booking. The client surfaces the message verbatim.
+export const DOUBLE_BOOKING_MESSAGE = 'Το τραπέζι είναι ήδη κρατημένο για αυτή την ώρα';
+export class DoubleBookingError extends Error {
+  constructor() { super(DOUBLE_BOOKING_MESSAGE); this.name = 'DoubleBookingError'; }
+}
+
 export async function upsertReservation(
   restaurantId: string,
   form: {
@@ -161,7 +169,10 @@ export async function upsertReservation(
   const { data, error } = id
     ? await sb.from('reservations').update(payload).eq('id', id).select().single()
     : await sb.from('reservations').insert(payload).select().single();
-  if (error) throw error;
+  if (error) {
+    if (error.code === '23505') throw new DoubleBookingError();
+    throw error;
+  }
   return mapReservation(data);
 }
 

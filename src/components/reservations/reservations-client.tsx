@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { Reservation, ReservationStatus, Table } from '@/types';
-import { upsertReservation, deleteReservation, updateReservationStatus } from '@/lib/supabase/queries';
+import { upsertReservation, deleteReservation, updateReservationStatus, DoubleBookingError } from '@/lib/supabase/queries';
 import { cn } from '@/lib/utils';
 import {
   Plus, Phone, Users, Clock, CalendarDays,
@@ -93,8 +93,8 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
           : [saved, ...prev],
       );
       setShowModal(false);
-    } catch {
-      setError('Σφάλμα κατά την αποθήκευση. Δοκιμάστε ξανά.');
+    } catch (err) {
+      setError(err instanceof DoubleBookingError ? err.message : 'Σφάλμα κατά την αποθήκευση. Δοκιμάστε ξανά.');
     } finally {
       setSaving(false);
     }
