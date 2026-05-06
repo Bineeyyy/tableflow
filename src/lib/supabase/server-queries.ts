@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { createClient } from './server';
 import type { Table, Reservation as AppReservation } from '@/types';
@@ -40,7 +41,9 @@ function mapReservation(r: DbReservation): AppReservation {
   };
 }
 
-export async function getMyRestaurant() {
+// React cache() dedupes calls within a single render pass so multiple
+// components in the same page don't refetch the same Supabase data.
+export const getMyRestaurant = cache(async () => {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
@@ -69,9 +72,9 @@ export async function getMyRestaurant() {
     .maybeSingle();
 
   return data;
-}
+});
 
-export async function getTablesForRestaurant(restaurantId: string): Promise<Table[]> {
+export const getTablesForRestaurant = cache(async (restaurantId: string): Promise<Table[]> => {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('restaurant_tables')
@@ -80,9 +83,9 @@ export async function getTablesForRestaurant(restaurantId: string): Promise<Tabl
     .order('number');
   if (error || !data) return [];
   return data.map(mapTable);
-}
+});
 
-export async function getReservationsForRestaurant(restaurantId: string): Promise<AppReservation[]> {
+export const getReservationsForRestaurant = cache(async (restaurantId: string): Promise<AppReservation[]> => {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('reservations')
@@ -92,9 +95,9 @@ export async function getReservationsForRestaurant(restaurantId: string): Promis
     .order('reserved_time');
   if (error || !data) return [];
   return data.map(mapReservation);
-}
+});
 
-export async function getOpenOrdersForRestaurant(restaurantId: string): Promise<DbOrder[]> {
+export const getOpenOrdersForRestaurant = cache(async (restaurantId: string): Promise<DbOrder[]> => {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('orders')
@@ -103,4 +106,4 @@ export async function getOpenOrdersForRestaurant(restaurantId: string): Promise<
     .eq('status', 'open');
   if (error || !data) return [];
   return data;
-}
+});

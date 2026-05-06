@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { logout } from '@/app/actions/auth';
 import { useMobileNav } from '@/lib/mobile-nav-context';
+import { NavLinkHint } from './nav-link-hint';
 import {
   LayoutGrid,
   Users,
@@ -101,6 +102,7 @@ export function Sidebar() {
             <Link
               key={href}
               href={href}
+              prefetch
               onClick={close}
               title={label}
               className={cn(
@@ -125,6 +127,7 @@ export function Sidebar() {
               <div className="flex items-center gap-3 md:gap-0 lg:gap-3">
                 <Icon size={18} strokeWidth={isActive ? 2.4 : 2} />
                 <span className="md:hidden lg:inline">{label}</span>
+                <NavLinkHint className="md:hidden lg:inline-block" />
               </div>
               {badge && (
                 <span

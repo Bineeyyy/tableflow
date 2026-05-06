@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutGrid, Users, UtensilsCrossed, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { NavLinkHint } from './nav-link-hint';
 
 const ITEMS = [
   { href: '/dashboard',              icon: LayoutGrid,       label: 'Κάτοψη' },
@@ -27,13 +28,17 @@ export function MobileBottomNav() {
           <Link
             key={href}
             href={href}
+            prefetch
             className={cn(
               'flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold tracking-tight',
               isActive ? 'text-[#F97316]' : 'text-[#6B7280]'
             )}
           >
             <Icon size={20} strokeWidth={isActive ? 2.4 : 2} />
-            <span>{label}</span>
+            <span className="flex items-center gap-1">
+              {label}
+              <NavLinkHint />
+            </span>
           </Link>
         );
       })}

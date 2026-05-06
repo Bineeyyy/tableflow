@@ -1,10 +1,20 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Bell, Search, Menu } from 'lucide-react';
-import { SearchDrawer } from './search-drawer';
-import { NotificationsDrawer } from './notifications-drawer';
 import { useMobileNav } from '@/lib/mobile-nav-context';
+
+// Drawers are heavy (Supabase client + filtered results). Defer their JS until
+// the first time the user opens one.
+const SearchDrawer = dynamic(
+  () => import('./search-drawer').then(m => ({ default: m.SearchDrawer })),
+  { ssr: false }
+);
+const NotificationsDrawer = dynamic(
+  () => import('./notifications-drawer').then(m => ({ default: m.NotificationsDrawer })),
+  { ssr: false }
+);
 
 interface TopBarProps {
   title: string;
@@ -95,12 +105,16 @@ export function TopBar({ title, subtitle }: TopBarProps) {
         </div>
       </header>
 
-      <SearchDrawer isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
-      <NotificationsDrawer
-        isOpen={notifOpen}
-        onClose={() => setNotifOpen(false)}
-        onChange={setUnread}
-      />
+      {searchOpen && (
+        <SearchDrawer isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+      )}
+      {notifOpen && (
+        <NotificationsDrawer
+          isOpen={notifOpen}
+          onClose={() => setNotifOpen(false)}
+          onChange={setUnread}
+        />
+      )}
     </>
   );
 }
