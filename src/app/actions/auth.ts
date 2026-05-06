@@ -80,22 +80,49 @@ export async function login(_: unknown, formData: FormData) {
 }
 
 export async function register(_: unknown, formData: FormData) {
+  const email = formData.get('email') as string
   const password = formData.get('password') as string
   const confirmPassword = formData.get('confirmPassword') as string
+  const name = formData.get('name') as string
   if (password !== confirmPassword) {
     return { error: 'Οι κωδικοί δεν ταιριάζουν' }
   }
 
   try {
     const supabase = await createClient()
-    const { error } = await supabase.auth.signUp({
-      email: formData.get('email') as string,
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email,
       password,
       options: {
-        data: { full_name: formData.get('name') as string },
+        data: { full_name: name },
       },
     })
-    if (error) return { error: error.message }
+    if (signUpError) return { error: signUpError.message }
+
+    // Supabase email confirmation is on for this project, which means signUp
+    // does not return a session and a follow-up signInWithPassword would fail
+    // with the generic "Invalid login credentials" error until the email is
+    // confirmed. Auto-confirm with the service-role admin client so users can
+    // proceed straight to onboarding without an email round-trip.
+    if (!signUpData.session && signUpData.user && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const admin = createAdminClient()
+      const { error: confirmError } = await admin.auth.admin.updateUserById(
+        signUpData.user.id,
+        { email_confirm: true },
+      )
+      if (confirmError) return { error: confirmError.message }
+    }
+
+    // Establish a real session on the SSR client so the redirect lands the
+    // user inside the dashboard (or onboarding) instead of bouncing back to
+    // /auth/login via the proxy.
+    if (!signUpData.session) {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      if (signInError) return { error: signInError.message }
+    }
   } catch {
     return { error: 'Παρουσιάστηκε σφάλμα. Παρακαλώ δοκιμάστε ξανά.' }
   }
