@@ -44,13 +44,6 @@ interface FloorPlanProps {
   todayReservations: Reservation[];
 }
 
-// Half-extent of each table shape (px). Mirrors the size classes in TableNode.
-function halfSize(shape: Table['shape']): readonly [number, number] {
-  if (shape === 'rectangle') return [56, 32];
-  if (shape === 'round')     return [32, 32];
-  return [40, 40]; // square
-}
-
 export function FloorPlan({ initialTables, restaurantId, todayReservations }: FloorPlanProps) {
   const router = useRouter();
   const [tables, setTables] = useState<Table[]>(initialTables);
@@ -227,53 +220,6 @@ export function FloorPlan({ initialTables, restaurantId, todayReservations }: Fl
     return map;
   }, [reservations]);
 
-  // Auto-fit canvas: bounding box of all tables → zone → labels around it
-  const layout = useMemo(() => {
-    const PAD = 48;          // breathing room inside the zone, around tables
-    const SIDE_PAD = 32;     // canvas margin left/right of the zone
-    const TOP_LABEL_H = 36;  // canvas margin above the zone (for "ΑΙΘΟΥΣΑ")
-    const BOT_LABEL_H = 60;  // canvas margin below the zone (for "ΕΙΣΟΔΟΣ" marker)
-
-    if (tables.length === 0) {
-      const zoneW = 480, zoneH = 280;
-      return {
-        baseW: SIDE_PAD * 2 + zoneW,
-        baseH: TOP_LABEL_H + zoneH + BOT_LABEL_H,
-        zoneX: SIDE_PAD,
-        zoneY: TOP_LABEL_H,
-        zoneW,
-        zoneH,
-        offsetX: 0,
-        offsetY: 0,
-      };
-    }
-
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const t of tables) {
-      const [hw, hh] = halfSize(t.shape);
-      if (t.x - hw < minX) minX = t.x - hw;
-      if (t.x + hw > maxX) maxX = t.x + hw;
-      if (t.y - hh < minY) minY = t.y - hh;
-      if (t.y + hh > maxY) maxY = t.y + hh;
-    }
-
-    const zoneW = (maxX - minX) + PAD * 2;
-    const zoneH = (maxY - minY) + PAD * 2;
-    const baseW = SIDE_PAD * 2 + zoneW;
-    const baseH = TOP_LABEL_H + zoneH + BOT_LABEL_H;
-
-    return {
-      baseW,
-      baseH,
-      zoneX: SIDE_PAD,
-      zoneY: TOP_LABEL_H,
-      zoneW,
-      zoneH,
-      offsetX: SIDE_PAD + PAD - minX,
-      offsetY: TOP_LABEL_H + PAD - minY,
-    };
-  }, [tables]);
-
   if (tables.length === 0) {
     return (
       <div className="flex h-full items-center justify-center text-[#6B7280] text-sm">
@@ -316,71 +262,46 @@ export function FloorPlan({ initialTables, restaurantId, todayReservations }: Fl
           </div>
         </div>
 
-        {/* Canvas — dark, content auto-fits & is centered */}
+        {/* Canvas — fixed 860x580 dark canvas with full-size dashed dining zone */}
         <div className="flex-1 rounded-lg border border-white/10 overflow-auto max-w-full" style={{ background: '#0F0F0F' }}>
           <div
-            className="flex items-center justify-center"
+            className="relative min-h-full"
             style={{
-              width: `${layout.baseW * zoom}px`,
-              height: `${layout.baseH * zoom}px`,
-              minWidth: '100%',
-              minHeight: '100%',
+              width: `${860 * zoom}px`,
+              height: `${580 * zoom}px`,
+              backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)',
+              backgroundSize: `${24 * zoom}px ${24 * zoom}px`,
+              transform: `scale(${zoom})`,
+              transformOrigin: 'top left',
             }}
           >
+            {/* Full-size dashed dining-zone box */}
             <div
-              className="relative flex-shrink-0"
-              style={{
-                width: `${layout.baseW}px`,
-                height: `${layout.baseH}px`,
-                transform: `scale(${zoom})`,
-                transformOrigin: 'center center',
-                backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)',
-                backgroundSize: '24px 24px',
-              }}
-            >
-              {/* Dashed dining-zone box (auto-sized to all tables) */}
-              <div
-                className="absolute rounded-lg border-2 border-dashed pointer-events-none"
-                style={{
-                  left: layout.zoneX,
-                  top: layout.zoneY,
-                  width: layout.zoneW,
-                  height: layout.zoneH,
-                  borderColor: 'rgba(255,255,255,0.10)',
-                }}
-              />
+              className="absolute inset-4 rounded-lg border-2 border-dashed pointer-events-none"
+              style={{ borderColor: 'rgba(255,255,255,0.10)' }}
+            />
 
-              {/* ΑΙΘΟΥΣΑ — centered above the zone */}
-              <div
-                className="absolute pointer-events-none flex justify-center"
-                style={{ left: layout.zoneX, top: layout.zoneY - 24, width: layout.zoneW }}
-              >
-                <span className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                  Αίθουσα
-                </span>
-              </div>
-
-              {/* ΕΙΣΟΔΟΣ marker — centered below the zone */}
-              <div
-                className="absolute pointer-events-none flex flex-col items-center gap-1"
-                style={{ left: layout.zoneX, top: layout.zoneY + layout.zoneH + 14, width: layout.zoneW }}
-              >
-                <div className="w-16 h-[3px] bg-[#F97316] rounded-full" style={{ boxShadow: '0 0 12px rgba(249,115,22,0.5)' }} />
-                <span className="text-[10px] text-[#F97316] uppercase tracking-[0.18em] font-bold">Είσοδος</span>
-              </div>
-
-              {/* Tables — shifted so the bounding box aligns with the zone interior */}
-              <div className="absolute" style={{ left: layout.offsetX, top: layout.offsetY }}>
-                {tables.map(table => (
-                  <TableNode
-                    key={table.id}
-                    table={table}
-                    isSelected={selectedTable?.id === table.id}
-                    onClick={handleTableClick}
-                  />
-                ))}
-              </div>
+            {/* ΑΙΘΟΥΣΑ — centered along the top of the zone */}
+            <div className="absolute top-8 left-1/2 -translate-x-1/2 pointer-events-none">
+              <span className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                Αίθουσα
+              </span>
             </div>
+
+            {/* ΕΙΣΟΔΟΣ marker — centered along the bottom of the zone */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 pointer-events-none">
+              <div className="w-16 h-[3px] bg-[#F97316] rounded-full" style={{ boxShadow: '0 0 12px rgba(249,115,22,0.5)' }} />
+              <span className="text-[10px] text-[#F97316] uppercase tracking-[0.18em] font-bold">Είσοδος</span>
+            </div>
+
+            {tables.map(table => (
+              <TableNode
+                key={table.id}
+                table={table}
+                isSelected={selectedTable?.id === table.id}
+                onClick={handleTableClick}
+              />
+            ))}
           </div>
         </div>
 
