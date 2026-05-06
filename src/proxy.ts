@@ -81,7 +81,18 @@ export async function proxy(request: NextRequest) {
         .eq('id', restaurantId)
         .maybeSingle()
 
-      const status = data?.subscription_status ?? 'none'
+      // Cookie pointed at a restaurant we can no longer see (deleted,
+      // transferred, or stale across an account switch). Clear both cookies
+      // and bounce to /onboarding — without this the user lands on the empty
+      // dashboard with no link out.
+      if (!data) {
+        const redirect = NextResponse.redirect(new URL('/onboarding', request.url))
+        redirect.cookies.delete(RESTAURANT_COOKIE)
+        redirect.cookies.delete(SUB_STATUS_COOKIE)
+        return redirect
+      }
+
+      const status = data.subscription_status ?? 'none'
       supabaseResponse.cookies.set(SUB_STATUS_COOKIE, status, {
         path: '/', httpOnly: true, sameSite: 'lax', maxAge: SUB_STATUS_TTL,
       })
@@ -94,11 +105,23 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Authenticated user with a restaurant visiting /onboarding → send to dashboard
+  // Authenticated user with a restaurant visiting /onboarding → send to dashboard.
+  // Verifying the cookie means a stale id (deleted/transferred restaurant) doesn't
+  // trap the user in a redirect loop where /dashboard is empty and /onboarding
+  // bounces back. If the row is gone, clear cookies and let them onboard.
   if (user && path === '/onboarding') {
     const restaurantId = request.cookies.get(RESTAURANT_COOKIE)?.value
     if (restaurantId) {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      const { data } = await supabase
+        .from('restaurants')
+        .select('id')
+        .eq('id', restaurantId)
+        .maybeSingle()
+      if (data) {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
+      supabaseResponse.cookies.delete(RESTAURANT_COOKIE)
+      supabaseResponse.cookies.delete(SUB_STATUS_COOKIE)
     }
   }
 

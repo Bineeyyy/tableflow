@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { stripe, STRIPE_PRICES } from '@/lib/stripe';
+
+const RESTAURANT_COOKIE = 'tf_restaurant_id';
 
 export async function POST(request: NextRequest) {
   // Validate env config first so a misconfigured deployment fails loudly
@@ -41,13 +44,40 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: restaurant, error: restErr } = await supabase
-    .from('restaurants')
-    .select('id, plan, stripe_customer_id')
-    .eq('owner_id', user.id)
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  // Honour the pinned restaurant from the cookie so multi-restaurant owners
+  // can subscribe whichever one they're currently viewing. The cookie is
+  // verified against owner_id — if it points at a restaurant they no longer
+  // own (transferred, deleted, switched accounts), we fall back to the
+  // oldest-owned restaurant. RLS would also reject a foreign id, but the
+  // explicit owner_id check returns a clean error instead of a generic 404.
+  const cookieStore = await cookies();
+  const pinnedId = cookieStore.get(RESTAURANT_COOKIE)?.value;
+
+  let restaurant: { id: string; plan: string | null; stripe_customer_id: string | null } | null = null;
+  let restErr: { message?: string } | null = null;
+
+  if (pinnedId) {
+    const { data, error } = await supabase
+      .from('restaurants')
+      .select('id, plan, stripe_customer_id')
+      .eq('id', pinnedId)
+      .eq('owner_id', user.id)
+      .maybeSingle();
+    restaurant = data;
+    restErr = error;
+  }
+
+  if (!restaurant && !restErr) {
+    const { data, error } = await supabase
+      .from('restaurants')
+      .select('id, plan, stripe_customer_id')
+      .eq('owner_id', user.id)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    restaurant = data;
+    restErr = error;
+  }
 
   if (restErr) {
     console.error('[checkout] restaurant lookup failed:', restErr);
