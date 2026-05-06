@@ -1,21 +1,5 @@
 import { createClient } from './client';
-import { Tables, TablesInsert, TablesUpdate } from '@/types/database.types';
-import type { Reservation as AppReservation, ReservationStatus } from '@/types';
-
-function mapReservation(r: Tables<'reservations'>): AppReservation {
-  return {
-    id: r.id,
-    name: r.customer_name,
-    phone: r.customer_phone ?? '',
-    date: r.reserved_date,
-    time: r.reserved_time.slice(0, 5),
-    guests: r.party_size,
-    table_id: r.table_id ?? undefined,
-    status: r.status,
-    notes: r.notes ?? '',
-    created_at: r.created_at,
-  };
-}
+import { TablesInsert, TablesUpdate } from '@/types/database.types';
 
 // ── Restaurant ─────────────────────────────────────────────────────────────
 
@@ -115,72 +99,9 @@ export async function getReservations(restaurantId: string, date?: string) {
   return data;
 }
 
-export async function createReservation(input: TablesInsert<'reservations'>) {
-  const sb = createClient();
-  const { data, error } = await sb
-    .from('reservations')
-    .insert(input)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
-}
-
-export async function updateReservationStatus(
-  reservationId: string,
-  status: TablesUpdate<'reservations'>['status']
-) {
-  const sb = createClient();
-  const { error } = await sb
-    .from('reservations')
-    .update({ status })
-    .eq('id', reservationId);
-  if (error) throw error;
-}
-
-// Thrown when the partial unique index `reservations_table_slot_uniq` rejects a
-// reservation because the same table+date+time is already taken by a non-terminal
-// booking. The client surfaces the message verbatim.
-export const DOUBLE_BOOKING_MESSAGE = 'Το τραπέζι είναι ήδη κρατημένο για αυτή την ώρα';
-export class DoubleBookingError extends Error {
-  constructor() { super(DOUBLE_BOOKING_MESSAGE); this.name = 'DoubleBookingError'; }
-}
-
-export async function upsertReservation(
-  restaurantId: string,
-  form: {
-    name: string; phone: string; date: string; time: string;
-    guests: number; table_id?: string; status: ReservationStatus; notes?: string;
-  },
-  id?: string
-): Promise<AppReservation> {
-  const sb = createClient();
-  const payload = {
-    customer_name: form.name,
-    customer_phone: form.phone || null,
-    reserved_date: form.date,
-    reserved_time: form.time,
-    party_size: form.guests,
-    table_id: form.table_id || null,
-    status: form.status,
-    notes: form.notes || null,
-    restaurant_id: restaurantId,
-  };
-  const { data, error } = id
-    ? await sb.from('reservations').update(payload).eq('id', id).select().single()
-    : await sb.from('reservations').insert(payload).select().single();
-  if (error) {
-    if (error.code === '23505') throw new DoubleBookingError();
-    throw error;
-  }
-  return mapReservation(data);
-}
-
-export async function deleteReservation(id: string) {
-  const sb = createClient();
-  const { error } = await sb.from('reservations').delete().eq('id', id);
-  if (error) throw error;
-}
+// Reservation writes live in @/app/actions/reservations — those routes go
+// through 'use server' with restaurant scoping and Greek validation. The
+// browser client only reads reservations here.
 
 // ── Menu ───────────────────────────────────────────────────────────────────
 

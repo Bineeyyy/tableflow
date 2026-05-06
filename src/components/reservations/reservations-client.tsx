@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { Reservation, ReservationStatus, Table } from '@/types';
-import { upsertReservation, deleteReservation, updateReservationStatus, DoubleBookingError } from '@/lib/supabase/queries';
+import { upsertReservation, deleteReservation, updateReservationStatus } from '@/app/actions/reservations';
 import { cn } from '@/lib/utils';
 import {
   Plus, Phone, Users, Clock, CalendarDays,
@@ -81,40 +81,39 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
     if (!form.name || !form.date || !form.time || !form.guests) return;
     setSaving(true);
     setError('');
-    try {
-      const saved = await upsertReservation(
-        restaurantId,
-        { ...form, guests: parseInt(form.guests), table_id: form.table_id || undefined },
-        editItem?.id,
-      );
-      setReservations(prev =>
-        editItem
-          ? prev.map(r => r.id === editItem.id ? saved : r)
-          : [saved, ...prev],
-      );
-      setShowModal(false);
-    } catch (err) {
-      setError(err instanceof DoubleBookingError ? err.message : 'Σφάλμα κατά την αποθήκευση. Δοκιμάστε ξανά.');
-    } finally {
-      setSaving(false);
-    }
+    const res = await upsertReservation(
+      { ...form, guests: parseInt(form.guests), table_id: form.table_id || undefined },
+      editItem?.id,
+    );
+    setSaving(false);
+    if ('error' in res) { setError(res.error); return; }
+    setReservations(prev =>
+      editItem
+        ? prev.map(r => r.id === editItem.id ? res.reservation : r)
+        : [res.reservation, ...prev],
+    );
+    setShowModal(false);
   };
 
+  // Optimistic delete: snapshot first so we can roll back if the server rejects
+  // (e.g. cookie cleared, restaurant switched, RLS denial).
   const remove = async (id: string) => {
+    const snapshot = reservations;
     setReservations(prev => prev.filter(r => r.id !== id));
-    try {
-      await deleteReservation(id);
-    } catch (err) {
-      console.error('Failed to delete reservation:', err);
+    const res = await deleteReservation(id);
+    if ('error' in res) {
+      console.error('Failed to delete reservation:', res.error);
+      setReservations(snapshot);
     }
   };
 
   const changeStatus = async (id: string, status: ReservationStatus) => {
+    const snapshot = reservations;
     setReservations(prev => prev.map(r => r.id === id ? { ...r, status } : r));
-    try {
-      await updateReservationStatus(id, status);
-    } catch (err) {
-      console.error('Failed to update status:', err);
+    const res = await updateReservationStatus(id, status);
+    if ('error' in res) {
+      console.error('Failed to update status:', res.error);
+      setReservations(snapshot);
     }
   };
 
