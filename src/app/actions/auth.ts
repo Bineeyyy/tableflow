@@ -17,6 +17,24 @@ const GENERIC_AUTH_ERROR = 'Λάθος email ή κωδικός.'
 // specific limit was hit, so a brute-forcer can't tell which knob to turn.
 const RATE_LIMIT_ERROR = 'Πολλές προσπάθειες. Παρακαλώ δοκιμάστε ξανά σε λίγο.'
 
+// Distinct from GENERIC_AUTH_ERROR. Surfaced when the auth service couldn't
+// even check credentials — Supabase returned 5xx, the SDK threw a retryable
+// fetch error, or env vars are wrong. Without this branch users blamed their
+// password during outages and exhausted reset attempts. The message is
+// deliberately vague about WHICH service is down so it doesn't help an
+// attacker probe infrastructure.
+const SERVICE_UNAVAILABLE_ERROR = 'Η υπηρεσία είναι προσωρινά μη διαθέσιμη. Δοκιμάστε ξανά σε λίγο.'
+
+// Auth-js surfaces network/5xx failures via an explicit error name and an
+// HTTP status. Anything 5xx-or-fetch is the auth service being unreachable;
+// 4xx (bad credentials, validation) keeps the generic message so we don't
+// double as an enumeration oracle.
+function isAuthServiceError(error: { status?: number; name?: string } | null): boolean {
+  if (!error) return false
+  if (error.name === 'AuthRetryableFetchError') return true
+  return typeof error.status === 'number' && error.status >= 500
+}
+
 // Per-IP windows. Tuned to be permissive for legitimate users on shared NATs
 // (offices, mobile carriers) while still cutting brute-force throughput by 1-2
 // orders of magnitude. If we adopt Upstash later, key these the same way.
@@ -70,10 +88,23 @@ export async function login(_: unknown, formData: FormData) {
   try {
     const supabase = await createClient(rememberMe ? 3650 : 0)
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error || !data.user) return { error: GENERIC_AUTH_ERROR }
+    if (error) {
+      if (isAuthServiceError(error)) {
+        // Log the actual error server-side so on-call can correlate with the
+        // SERVICE_UNAVAILABLE_ERROR users see and check Supabase status.
+        console.error('[auth/login] service error:', error)
+        return { error: SERVICE_UNAVAILABLE_ERROR }
+      }
+      return { error: GENERIC_AUTH_ERROR }
+    }
+    if (!data.user) return { error: GENERIC_AUTH_ERROR }
     await cacheRestaurantCookie(data.user.id, supabase, rememberMe)
-  } catch {
-    return { error: GENERIC_AUTH_ERROR }
+  } catch (e) {
+    // Anything that didn't make it back through the SDK's normal error
+    // envelope — env misconfig, network blip, or createClient throwing.
+    // Same UX path as 5xx: tell the user it's the service, log the cause.
+    console.error('[auth/login] threw:', e)
+    return { error: SERVICE_UNAVAILABLE_ERROR }
   }
   redirect('/dashboard')
 }
