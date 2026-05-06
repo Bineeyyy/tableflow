@@ -10,13 +10,14 @@ import {
 interface TableDetailPanelProps {
   table: Table;
   reservation?: Reservation;
+  isPending?: boolean;
   onClose: () => void;
   onFree: (tableId: string) => void;
   onRequestOccupy: (table: Table) => void;
 }
 
 export function TableDetailPanel({
-  table, reservation, onClose, onFree, onRequestOccupy,
+  table, reservation, isPending, onClose, onFree, onRequestOccupy,
 }: TableDetailPanelProps) {
   const free = table.status === 'available';
 
@@ -91,7 +92,11 @@ export function TableDetailPanel({
           {free ? (
             <button
               onClick={() => onRequestOccupy(table)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#0A0A0A] hover:bg-black text-white text-[13px] font-semibold transition-all duration-150 active:scale-[0.98]"
+              disabled={isPending}
+              className={cn(
+                'w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#0A0A0A] hover:bg-black text-white text-[13px] font-semibold transition-all duration-150 active:scale-[0.98]',
+                isPending && 'opacity-60 cursor-not-allowed',
+              )}
             >
               <UserPlus size={14} />
               Εισαγωγή Πελατών
@@ -99,7 +104,11 @@ export function TableDetailPanel({
           ) : (
             <button
               onClick={() => onFree(table.id)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#10B981] hover:bg-[#059669] text-white text-[13px] font-semibold transition-all duration-150 active:scale-[0.98]"
+              disabled={isPending}
+              className={cn(
+                'w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#10B981] hover:bg-[#059669] text-white text-[13px] font-semibold transition-all duration-150 active:scale-[0.98]',
+                isPending && 'opacity-60 cursor-not-allowed',
+              )}
             >
               <CheckCircle size={14} />
               Αποχώρηση Πελατών

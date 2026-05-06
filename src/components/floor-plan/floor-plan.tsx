@@ -55,6 +55,15 @@ export function FloorPlan({ initialTables, restaurantId, todayReservations }: Fl
   const [zoom, setZoom] = useState(1);
   const [occupyTarget, setOccupyTarget] = useState<Table | null>(null);
   const [live, setLive] = useState(false);
+  // Per-table in-flight set. Mirrors the guard the mobile FloorTab uses:
+  // rapid double/triple taps would otherwise queue parallel server actions
+  // whose final state is decided by whichever round-trip resolves last.
+  const [pending, setPending] = useState<Set<string>>(new Set());
+
+  const startPending = useCallback((id: string) =>
+    setPending(prev => { const next = new Set(prev); next.add(id); return next; }), []);
+  const endPending = useCallback((id: string) =>
+    setPending(prev => { const next = new Set(prev); next.delete(id); return next; }), []);
 
   const handleTableClick = useCallback((table: Table) => {
     setSelectedTable(prev => prev?.id === table.id ? null : table);
@@ -122,23 +131,52 @@ export function FloorPlan({ initialTables, restaurantId, todayReservations }: Fl
   }, [restaurantId]);
 
   const handleFree = useCallback(async (tableId: string) => {
+    if (pending.has(tableId)) return;
+    const prev = tables.find(t => t.id === tableId);
+    if (!prev) return;
+    const rollback = { status: prev.status, current_guests: prev.current_guests };
     applyLocal(tableId, { status: 'available', current_guests: 0 });
-    const res = await setTableOccupancy(tableId, { occupied: false });
-    if (res.error) console.error('Failed to free table:', res.error);
-  }, [applyLocal]);
+    startPending(tableId);
+    try {
+      const res = await setTableOccupancy(tableId, { occupied: false });
+      if (res.error) {
+        applyLocal(tableId, rollback);
+        console.error('Failed to free table:', res.error);
+      }
+    } catch (e) {
+      applyLocal(tableId, rollback);
+      console.error('Failed to free table:', e);
+    } finally {
+      endPending(tableId);
+    }
+  }, [pending, tables, applyLocal, startPending, endPending]);
 
   const handleRequestOccupy = useCallback((table: Table) => {
+    if (pending.has(table.id)) return;
     setOccupyTarget(table);
-  }, []);
+  }, [pending]);
 
   const handleConfirmOccupy = useCallback(async (guests: number) => {
     if (!occupyTarget) return;
     const tableId = occupyTarget.id;
+    if (pending.has(tableId)) { setOccupyTarget(null); return; }
+    const rollback = { status: occupyTarget.status, current_guests: occupyTarget.current_guests };
     setOccupyTarget(null);
     applyLocal(tableId, { status: 'occupied', current_guests: guests });
-    const res = await setTableOccupancy(tableId, { occupied: true, guests });
-    if (res.error) console.error('Failed to occupy table:', res.error);
-  }, [occupyTarget, applyLocal]);
+    startPending(tableId);
+    try {
+      const res = await setTableOccupancy(tableId, { occupied: true, guests });
+      if (res.error) {
+        applyLocal(tableId, rollback);
+        console.error('Failed to occupy table:', res.error);
+      }
+    } catch (e) {
+      applyLocal(tableId, rollback);
+      console.error('Failed to occupy table:', e);
+    } finally {
+      endPending(tableId);
+    }
+  }, [occupyTarget, pending, applyLocal, startPending, endPending]);
 
   const closePanel = useCallback(() => setSelectedTable(null), []);
   const resetZoom = useCallback(() => setZoom(1), []);
@@ -333,6 +371,7 @@ export function FloorPlan({ initialTables, restaurantId, todayReservations }: Fl
         <TableDetailPanel
           table={selectedTable}
           reservation={reservationByTable.get(selectedTable.id)}
+          isPending={pending.has(selectedTable.id)}
           onClose={closePanel}
           onFree={handleFree}
           onRequestOccupy={handleRequestOccupy}
