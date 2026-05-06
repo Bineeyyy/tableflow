@@ -22,6 +22,8 @@ export default async function WaiterPage() {
 
   const todayReservations = reservations.filter(r => r.date === today);
 
+  const isOwner = !!(user && user.id === restaurant.owner_id);
+
   return (
     <WaiterApp
       restaurantId={restaurant.id}
@@ -29,6 +31,7 @@ export default async function WaiterPage() {
       initialTables={tables}
       initialReservations={todayReservations}
       userEmail={user?.email ?? ''}
+      isOwner={isOwner}
     />
   );
 }

@@ -45,11 +45,12 @@ type Props = {
   initialTables: Table[];
   initialReservations: Reservation[];
   userEmail: string;
+  isOwner: boolean;
 };
 
 export function WaiterApp({
   restaurantId, restaurantName,
-  initialTables, initialReservations, userEmail,
+  initialTables, initialReservations, userEmail, isOwner,
 }: Props) {
   const [tab, setTab] = useState<Tab>('floor');
   const [tables, setTables] = useState<Table[]>(initialTables);
@@ -153,7 +154,7 @@ export function WaiterApp({
         <main className="flex-1 overflow-y-auto pb-24">
           {tab === 'floor' && <FloorTab tables={tables} onTablePatch={applyTablePatch} />}
           {tab === 'reservations' && <ReservationsTab reservations={reservations} tables={tables} />}
-          {tab === 'profile' && <ProfileTab userEmail={userEmail} restaurantName={restaurantName} />}
+          {tab === 'profile' && <ProfileTab userEmail={userEmail} restaurantName={restaurantName} isOwner={isOwner} />}
         </main>
 
         {/* Toast for new reservations */}

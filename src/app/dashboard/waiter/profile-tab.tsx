@@ -5,7 +5,15 @@ import { LogOut, Monitor, Shield, Mail } from 'lucide-react';
 import { logout } from '@/app/actions/auth';
 import { FORCE_DESKTOP_KEY } from '@/components/ui/mobile-redirect';
 
-export function ProfileTab({ userEmail, restaurantName }: { userEmail: string; restaurantName: string }) {
+export function ProfileTab({
+  userEmail,
+  restaurantName,
+  isOwner,
+}: {
+  userEmail: string;
+  restaurantName: string;
+  isOwner: boolean;
+}) {
   const router = useRouter();
 
   // Phones normally get bounced from /dashboard back to /dashboard/waiter by
@@ -44,7 +52,7 @@ export function ProfileTab({ userEmail, restaurantName }: { userEmail: string; r
           <Shield size={15} className="text-white/40" />
           <div className="flex-1">
             <p className="text-[10px] uppercase tracking-wider font-bold text-white/40">Ρόλος</p>
-            <p className="text-[13px] text-white/90">Ιδιοκτήτης</p>
+            <p className="text-[13px] text-white/90">{isOwner ? 'Ιδιοκτήτης' : 'Μέλος'}</p>
           </div>
         </div>
       </div>
