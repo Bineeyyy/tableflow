@@ -90,39 +90,42 @@ export async function register(_: unknown, formData: FormData) {
 
   try {
     const supabase = await createClient()
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: name },
-      },
-    })
-    if (signUpError) return { error: signUpError.message }
 
-    // Supabase email confirmation is on for this project, which means signUp
-    // does not return a session and a follow-up signInWithPassword would fail
-    // with the generic "Invalid login credentials" error until the email is
-    // confirmed. Auto-confirm with the service-role admin client so users can
-    // proceed straight to onboarding without an email round-trip.
-    if (!signUpData.session && signUpData.user && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    // Supabase email confirmation is on for this project, so a public signUp
+    // would (a) trigger a confirmation email subject to the project's tight
+    // email-send rate limit and (b) leave the user unconfirmed — making the
+    // immediate signInWithPassword fail with the generic "Invalid login
+    // credentials" error. Use the service-role admin endpoint to create the
+    // user already-confirmed, sidestepping both problems in a single call.
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
       const admin = createAdminClient()
-      const { error: confirmError } = await admin.auth.admin.updateUserById(
-        signUpData.user.id,
-        { email_confirm: true },
-      )
-      if (confirmError) return { error: confirmError.message }
+      const { error: createError } = await admin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: name },
+      })
+      if (createError) return { error: createError.message }
+    } else {
+      // Fallback when no service-role key is configured: best-effort signUp.
+      // The user will land on /auth/login and need to confirm via email
+      // before signing in.
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: name } },
+      })
+      if (signUpError) return { error: signUpError.message }
     }
 
     // Establish a real session on the SSR client so the redirect lands the
     // user inside the dashboard (or onboarding) instead of bouncing back to
     // /auth/login via the proxy.
-    if (!signUpData.session) {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-      if (signInError) return { error: signInError.message }
-    }
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+    if (signInError) return { error: signInError.message }
   } catch {
     return { error: 'Παρουσιάστηκε σφάλμα. Παρακαλώ δοκιμάστε ξανά.' }
   }
