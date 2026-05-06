@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Table, TableStatus, Reservation } from '@/types';
 import type { Tables } from '@/types/database.types';
 import { TableNode } from './table-node';
@@ -51,6 +52,7 @@ function halfSize(shape: Table['shape']): readonly [number, number] {
 }
 
 export function FloorPlan({ initialTables, restaurantId, todayReservations }: FloorPlanProps) {
+  const router = useRouter();
   const [tables, setTables] = useState<Table[]>(initialTables);
   const [reservations, setReservations] = useState<Reservation[]>(todayReservations);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
@@ -61,6 +63,26 @@ export function FloorPlan({ initialTables, restaurantId, todayReservations }: Fl
   // rapid double/triple taps would otherwise queue parallel server actions
   // whose final state is decided by whichever round-trip resolves last.
   const [pending, setPending] = useState<Set<string>>(new Set());
+
+  // The dashboard's StatCards (occupied/available/expected guests) are
+  // server-rendered from the page-level fetch and aren't part of this
+  // component's useState, so realtime updates here keep the floor plan
+  // fresh but leave the tiles above stale. Coalesce a router.refresh()
+  // off any realtime echo to re-fetch the server props — debounced so a
+  // burst of updates doesn't trigger N refetches.
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleStatsRefresh = useCallback(() => {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = setTimeout(() => {
+      refreshTimerRef.current = null;
+      router.refresh();
+    }, 300);
+  }, [router]);
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    };
+  }, []);
 
   const startPending = useCallback((id: string) =>
     setPending(prev => { const next = new Set(prev); next.add(id); return next; }), []);
@@ -92,6 +114,7 @@ export function FloorPlan({ initialTables, restaurantId, todayReservations }: Fl
             if (!id) return;
             setTables(prev => prev.filter(t => t.id !== id));
             setSelectedTable(prev => prev?.id === id ? null : prev);
+            scheduleStatsRefresh();
             return;
           }
           const row = mapTable(payload.new as DbTable);
@@ -101,6 +124,7 @@ export function FloorPlan({ initialTables, restaurantId, todayReservations }: Fl
             const next = prev.slice(); next[idx] = row; return next;
           });
           setSelectedTable(prev => prev?.id === row.id ? row : prev);
+          scheduleStatsRefresh();
         },
       )
       .on(
@@ -110,6 +134,7 @@ export function FloorPlan({ initialTables, restaurantId, todayReservations }: Fl
           if (payload.eventType === 'DELETE') {
             const id = (payload.old as { id?: string }).id;
             if (id) setReservations(prev => prev.filter(r => r.id !== id));
+            scheduleStatsRefresh();
             return;
           }
           const row = mapReservation(payload.new as DbReservation);
@@ -118,6 +143,7 @@ export function FloorPlan({ initialTables, restaurantId, todayReservations }: Fl
           const today = new Date().toISOString().split('T')[0];
           if (row.date !== today) {
             setReservations(prev => prev.filter(r => r.id !== row.id));
+            scheduleStatsRefresh();
             return;
           }
           setReservations(prev => {
@@ -125,12 +151,13 @@ export function FloorPlan({ initialTables, restaurantId, todayReservations }: Fl
             if (idx === -1) return [...prev, row].sort((a, b) => a.time.localeCompare(b.time));
             const next = prev.slice(); next[idx] = row; return next;
           });
+          scheduleStatsRefresh();
         },
       )
       .subscribe(status => setLive(status === 'SUBSCRIBED'));
 
     return () => { supabase.removeChannel(channel); };
-  }, [restaurantId]);
+  }, [restaurantId, scheduleStatsRefresh]);
 
   const handleFree = useCallback(async (tableId: string) => {
     if (pending.has(tableId)) return;

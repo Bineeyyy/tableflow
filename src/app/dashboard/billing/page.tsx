@@ -132,6 +132,29 @@ function StatusBanner({
     );
   }
 
+  // Cancel-at-period-end: the user clicked Cancel in the Stripe portal but
+  // still has paid access until the current period ends. Stripe.subscription
+  // .updated flips status to 'canceling'; subscription.deleted later flips it
+  // to 'cancelled'. Surface the pending state explicitly so they don't see
+  // the same green "Pro ενεργή" banner they saw before clicking Cancel.
+  if (status === 'canceling') {
+    return (
+      <div className="flex items-start gap-3 px-5 py-4 bg-white border border-[#F97316]/30 rounded-lg shadow-card">
+        <AlertTriangle size={20} className="text-[#F97316] mt-0.5 flex-shrink-0" />
+        <div className="flex-1">
+          <p className="font-bold text-[#0A0A0A] tracking-tight">Η συνδρομή σας ακυρώνεται</p>
+          <p className="text-[13px] text-[#6B7280] mt-0.5">
+            Έχετε πρόσβαση σε όλες τις Pro λειτουργίες μέχρι το τέλος της τρέχουσας περιόδου.
+            Επαναφέρετε τη συνδρομή σας από το πύλη πληρωμών για να συνεχίσετε χωρίς διακοπή.
+          </p>
+        </div>
+        {hasCustomer && (
+          <PortalButton className="text-[#F97316] hover:text-[#EA580C] whitespace-nowrap" />
+        )}
+      </div>
+    );
+  }
+
   // subscription_status is the source of truth — `plan` column may lag behind.
   if (isActiveSub) {
     return (

@@ -5,13 +5,36 @@ import { Modal } from '@/components/ui/modal';
 import { UndoToast } from '@/components/ui/undo-toast';
 import { useUndoAction } from '@/hooks/use-undo-action';
 import { Reservation, ReservationStatus, Table } from '@/types';
+import type { Tables } from '@/types/database.types';
 import { upsertReservation, deleteReservation, updateReservationStatus } from '@/app/actions/reservations';
+import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import {
   Plus, Phone, Users, Clock, CalendarDays, Printer,
   CheckCircle2, AlertCircle, XCircle, UtensilsCrossed,
   Pencil, Trash2, ChevronDown,
 } from 'lucide-react';
+
+type DbReservation = Tables<'reservations'>;
+
+// Defensive coercion mirrors server-queries.mapReservation. Realtime payloads
+// arrive as raw rows; if a column is ever nullable a `.slice` could otherwise
+// crash the page.
+function mapReservationRow(r: DbReservation): Reservation {
+  const time = typeof r.reserved_time === 'string' ? r.reserved_time.slice(0, 5) : '';
+  return {
+    id: r.id,
+    name: r.customer_name ?? '',
+    phone: r.customer_phone ?? '',
+    date: r.reserved_date ?? '',
+    time,
+    guests: r.party_size ?? 0,
+    table_id: r.table_id ?? undefined,
+    status: r.status,
+    notes: r.notes ?? '',
+    created_at: r.created_at ?? '',
+  };
+}
 
 const STATUS_CONFIG: Record<ReservationStatus, { label: string; color: string; icon: React.ReactNode }> = {
   pending:   { label: 'Εκκρεμής',      color: 'bg-[#F97316]/10 text-[#C2410C] ring-1 ring-inset ring-[#F97316]/20', icon: <AlertCircle size={12} />     },
@@ -66,6 +89,37 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [openStatusId]);
+
+  // Realtime: keep the list in sync with cross-device edits. Without this,
+  // a waiter seating a reservation from their phone wouldn't show on the
+  // desktop list until manual refresh — and waiter.ts no longer calls
+  // revalidatePath, so a stale list could persist for a whole shift.
+  // RLS scopes the publication server-side, so other restaurants' rows
+  // never reach this client.
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`reservations-page:${restaurantId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'reservations', filter: `restaurant_id=eq.${restaurantId}` },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            const id = (payload.old as { id?: string }).id;
+            if (id) setReservations(prev => prev.filter(r => r.id !== id));
+            return;
+          }
+          const row = mapReservationRow(payload.new as DbReservation);
+          setReservations(prev => {
+            const idx = prev.findIndex(r => r.id === row.id);
+            if (idx === -1) return [row, ...prev];
+            const next = prev.slice(); next[idx] = row; return next;
+          });
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [restaurantId]);
 
   const today    = new Date().toISOString().split('T')[0];
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
