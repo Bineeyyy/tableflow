@@ -421,6 +421,27 @@ export type Database = {
           },
         ]
       }
+      stripe_webhook_events: {
+        Row: {
+          id: string
+          livemode: boolean
+          received_at: string
+          type: string
+        }
+        Insert: {
+          id: string
+          livemode: boolean
+          received_at?: string
+          type: string
+        }
+        Update: {
+          id?: string
+          livemode?: boolean
+          received_at?: string
+          type?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
