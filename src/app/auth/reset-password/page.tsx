@@ -10,9 +10,15 @@ import { PasswordStrength } from '@/components/auth/password-strength';
 function ResetPasswordContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const code = searchParams.get('code');
 
   const [ready, setReady] = useState(false);
-  const [exchangeError, setExchangeError] = useState('');
+  // Seed the missing-code error from the initial render — the lint rule
+  // forbids setState calls in the effect body, and we already know the
+  // outcome synchronously when no `code` query param is present.
+  const [exchangeError, setExchangeError] = useState(
+    code ? '' : 'Ο σύνδεσμος δεν είναι έγκυρος ή έχει λήξει.',
+  );
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -22,11 +28,7 @@ function ResetPasswordContent() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    const code = searchParams.get('code');
-    if (!code) {
-      setExchangeError('Ο σύνδεσμος δεν είναι έγκυρος ή έχει λήξει.');
-      return;
-    }
+    if (!code) return;
     const supabase = createClient();
     supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
       if (error) {
@@ -35,7 +37,7 @@ function ResetPasswordContent() {
         setReady(true);
       }
     });
-  }, [searchParams]);
+  }, [code]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

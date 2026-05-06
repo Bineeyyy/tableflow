@@ -121,8 +121,15 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
     return () => { supabase.removeChannel(channel); };
   }, [restaurantId]);
 
-  const today    = new Date().toISOString().split('T')[0];
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  // Lazy-init keeps Date.now() out of the render path so the
+  // react-hooks/purity rule passes; the values are stable for this mount.
+  const [[today, tomorrow]] = useState<[string, string]>(() => {
+    const now = Date.now();
+    return [
+      new Date(now).toISOString().split('T')[0],
+      new Date(now + 86400000).toISOString().split('T')[0],
+    ];
+  });
 
   const filtered = useMemo(() => {
     return reservations

@@ -29,14 +29,18 @@ const MORE_ITEMS = [
 export function MobileBottomNav() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+  // React 19 "adjust state during render" pattern — preferred over an
+  // effect that calls setState, per react-hooks/set-state-in-effect.
+  const [trackedPath, setTrackedPath] = useState(pathname);
+  if (trackedPath !== pathname) {
+    setTrackedPath(pathname);
+    if (moreOpen) setMoreOpen(false);
+  }
 
   // Highlight the More tab whenever the current route lives inside the sheet.
   const moreActive = MORE_ITEMS.some(({ href }) =>
     pathname === href || pathname.startsWith(href + '/'),
   );
-
-  // Close on route change so the sheet doesn't linger after a tap navigates.
-  useEffect(() => { setMoreOpen(false); }, [pathname]);
 
   // Lock body scroll while the sheet is open and wire up Escape to close.
   useEffect(() => {

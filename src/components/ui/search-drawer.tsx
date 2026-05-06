@@ -24,6 +24,15 @@ export function SearchDrawer({ isOpen, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
+  // Reset the query when the drawer transitions from open → closed.
+  // React 19 "adjust state during render" pattern — preferred over an
+  // effect that calls setState, per react-hooks/set-state-in-effect.
+  const [trackedOpen, setTrackedOpen] = useState(isOpen);
+  if (trackedOpen !== isOpen) {
+    setTrackedOpen(isOpen);
+    if (!isOpen && query !== '') setQuery('');
+  }
+
   // Esc to close
   useEffect(() => {
     if (!isOpen) return;
@@ -34,11 +43,9 @@ export function SearchDrawer({ isOpen, onClose }: Props) {
 
   // Autofocus input on open
   useEffect(() => {
-    if (isOpen) {
-      const id = window.setTimeout(() => inputRef.current?.focus(), 30);
-      return () => window.clearTimeout(id);
-    }
-    setQuery('');
+    if (!isOpen) return;
+    const id = window.setTimeout(() => inputRef.current?.focus(), 30);
+    return () => window.clearTimeout(id);
   }, [isOpen]);
 
   // Lazy fetch on first open. RLS restricts to current user's restaurants.
