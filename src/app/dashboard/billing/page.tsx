@@ -37,12 +37,17 @@ async function getProPriceLabel(): Promise<{ amount: string; interval: string }>
   }
 }
 
+// Honest plan composition: every shipped feature is in Free. Pro is a
+// supporter tier — it doesn't gate functionality, it funds development and
+// offers priority support. We deliberately do NOT list features that aren't
+// in the codebase yet (SMS, multi-user, exports) so customers don't pay for
+// vapor.
 const PLAN_META = {
   free: {
     name: 'Δωρεάν',
     price: '0€',
     period: '/μήνα',
-    description: 'Ιδανικό για μικρά εστιατόρια που ξεκινούν',
+    description: 'Πλήρης πρόσβαση στις τρέχουσες δυνατότητες',
     Icon: Star,
     color: 'border-[#E5E7EB]',
     headerBg: 'bg-[#F8F8F8]',
@@ -50,37 +55,30 @@ const PLAN_META = {
     subText: 'text-[#6B7280]',
     iconBg: 'bg-[#E5E7EB] text-[#6B7280]',
     features: [
-      { label: 'Έως 10 τραπέζια', ok: true },
-      { label: 'Βασική κάτοψη', ok: true },
-      { label: '1 χρήστης', ok: true },
+      { label: 'Διαχείριση τραπεζιών & κάτοψη', ok: true },
+      { label: 'Κρατήσεις', ok: true },
       { label: 'Διαχείριση μενού', ok: true },
-      { label: 'Κρατήσεις', ok: false },
-      { label: 'Αναφορές & στατιστικά', ok: false },
-      { label: 'Ειδοποιήσεις SMS', ok: false },
-      { label: 'Εξαγωγή δεδομένων', ok: false },
+      { label: 'Αναφορές & στατιστικά', ok: true },
+      { label: 'Live ενημερώσεις (Realtime)', ok: true },
     ],
   },
   pro: {
     name: 'Pro',
     price: '29€',
     period: '/μήνα',
-    description: 'Για επαγγελματίες που θέλουν όλες τις δυνατότητες',
+    description: 'Στηρίξτε την ανάπτυξη και αποκτήστε προτεραιότητα',
     Icon: Zap,
     color: 'border-[#F97316]',
     headerBg: 'bg-[#0A0A0A]',
     headerText: 'text-white',
     subText: 'text-white/60',
     iconBg: 'bg-[#F97316] text-white',
-    badge: 'Δημοφιλές',
+    badge: 'Στήριξη',
     features: [
-      { label: 'Απεριόριστα τραπέζια', ok: true },
-      { label: 'Πλήρης κάτοψη & ζώνες', ok: true },
-      { label: 'Έως 5 χρήστες', ok: true },
-      { label: 'Διαχείριση μενού', ok: true },
-      { label: 'Κρατήσεις online', ok: true },
-      { label: 'Αναφορές & στατιστικά', ok: true },
-      { label: 'Ειδοποιήσεις SMS', ok: true },
-      { label: 'Εξαγωγή δεδομένων', ok: false },
+      { label: 'Όλες οι λειτουργίες του Δωρεάν', ok: true },
+      { label: 'Στήριξη της ανάπτυξης', ok: true },
+      { label: 'Προτεραιότητα στην υποστήριξη', ok: true },
+      { label: 'Πρόωρη πρόσβαση σε νέες δυνατότητες', ok: true },
     ],
   },
 };
@@ -267,7 +265,7 @@ export default async function BillingPage({
               Επιλέξτε το πλάνο σας
             </h2>
             <p className="text-[14px] md:text-[15px] text-[#6B7280] mt-2">
-              Ξεκινήστε δωρεάν ή ξεκλειδώστε όλες τις δυνατότητες με Pro.
+              Όλες οι δυνατότητες είναι διαθέσιμες δωρεάν. Με το Pro στηρίζετε την ανάπτυξη της πλατφόρμας.
             </p>
           </div>
 
@@ -329,10 +327,11 @@ export default async function BillingPage({
               const isCurrent = currentPlan === 'pro';
               return (
                 <div className="relative">
-                  {/* Floating ΔΗΜΟΦΙΛΕΣ ribbon */}
+                  {/* Floating ribbon — frames Pro as a supporter tier rather
+                      than a fake "popular" claim. */}
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-20">
                     <div className="popular-ribbon text-white text-[11px] md:text-[12px] font-extrabold uppercase tracking-[0.18em] px-4 py-1.5 rounded-full whitespace-nowrap">
-                      ΔΗΜΟΦΙΛΕΣ
+                      ΣΤΗΡΙΞΗ
                     </div>
                   </div>
 
