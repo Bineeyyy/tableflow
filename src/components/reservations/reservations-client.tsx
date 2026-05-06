@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { Reservation, ReservationStatus, Table } from '@/types';
 import { upsertReservation, deleteReservation, updateReservationStatus } from '@/app/actions/reservations';
@@ -40,6 +40,19 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // Status menu was previously hover-only (`group-hover:block`), which never
+  // fires on touch — iOS users couldn't change reservation status from this
+  // list at all. Track an explicit open id so the menu works on tap.
+  const [openStatusId, setOpenStatusId] = useState<string | null>(null);
+
+  // Close the status menu on Escape so keyboard users can dismiss without
+  // chasing the backdrop.
+  useEffect(() => {
+    if (!openStatusId) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpenStatusId(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [openStatusId]);
 
   const today    = new Date().toISOString().split('T')[0];
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
@@ -129,6 +142,17 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
 
   return (
     <>
+      {/* Tap-anywhere-to-close backdrop for the status menu. Sits below the
+          menu (z-10) but above the list rows so a tap on another part of the
+          page first closes the open menu instead of clicking through. */}
+      {openStatusId && (
+        <div
+          aria-hidden
+          onClick={() => setOpenStatusId(null)}
+          className="fixed inset-0 z-10"
+        />
+      )}
+
       <div className="flex-1 overflow-y-auto overflow-x-hidden max-w-full p-3 md:p-6 space-y-4 md:space-y-5">
         {/* Toolbar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -213,22 +237,39 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
                         </div>
                       </div>
 
-                      {/* Quick status change */}
-                      <div className="relative group flex-shrink-0">
-                        <button className="flex items-center gap-1.5 px-3 py-1.5 border border-[#E5E7EB] rounded-md text-[12px] font-semibold text-[#6B7280] hover:border-[#0A0A0A] hover:text-[#0A0A0A] transition-colors">
-                          Αλλαγή <ChevronDown size={12} />
+                      {/* Quick status change — click-to-toggle so iOS taps work */}
+                      <div className="relative flex-shrink-0">
+                        <button
+                          onClick={() => setOpenStatusId(prev => prev === r.id ? null : r.id)}
+                          aria-expanded={openStatusId === r.id}
+                          aria-haspopup="menu"
+                          className={cn(
+                            'flex items-center gap-1.5 px-3 py-1.5 border rounded-md text-[12px] font-semibold transition-colors',
+                            openStatusId === r.id
+                              ? 'border-[#0A0A0A] text-[#0A0A0A] bg-[#F8F8F8]'
+                              : 'border-[#E5E7EB] text-[#6B7280] hover:border-[#0A0A0A] hover:text-[#0A0A0A]',
+                          )}
+                        >
+                          Αλλαγή
+                          <ChevronDown
+                            size={12}
+                            className={cn('transition-transform', openStatusId === r.id && 'rotate-180')}
+                          />
                         </button>
-                        <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-[#E5E7EB] rounded-lg shadow-pop z-20 hidden group-hover:block overflow-hidden">
-                          {(Object.entries(STATUS_CONFIG) as [ReservationStatus, typeof STATUS_CONFIG[ReservationStatus]][]).map(([key, cfg]) => (
-                            <button
-                              key={key}
-                              onClick={() => changeStatus(r.id, key)}
-                              className={cn('w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-[#F8F8F8] transition-colors', r.status === key && 'bg-[#F8F8F8] font-bold')}
-                            >
-                              {cfg.icon}<span>{cfg.label}</span>
-                            </button>
-                          ))}
-                        </div>
+                        {openStatusId === r.id && (
+                          <div role="menu" className="absolute right-0 top-full mt-1 w-44 bg-white border border-[#E5E7EB] rounded-lg shadow-pop z-20 overflow-hidden">
+                            {(Object.entries(STATUS_CONFIG) as [ReservationStatus, typeof STATUS_CONFIG[ReservationStatus]][]).map(([key, cfg]) => (
+                              <button
+                                key={key}
+                                role="menuitem"
+                                onClick={() => { changeStatus(r.id, key); setOpenStatusId(null); }}
+                                className={cn('w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-[#F8F8F8] transition-colors', r.status === key && 'bg-[#F8F8F8] font-bold')}
+                              >
+                                {cfg.icon}<span>{cfg.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       {/* Edit / Delete */}
