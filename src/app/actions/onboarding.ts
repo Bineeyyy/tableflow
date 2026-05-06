@@ -43,15 +43,12 @@ export async function createRestaurant(_: unknown, formData: FormData) {
     return { error: 'Σφάλμα κατά τη δημιουργία εστιατορίου. Δοκιμάστε ξανά.' }
   }
 
-  // Add owner to restaurant_members — required for has_restaurant_access() and
-  // for the restaurant_tables INSERT policy (tables: insert if member).
-  const { error: memberError } = await supabase
-    .from('restaurant_members')
-    .insert({ restaurant_id: restaurantId, user_id: user.id, role: 'owner' })
-
-  if (memberError) {
-    return { error: 'Σφάλμα κατά τη ρύθμιση δικαιωμάτων. Δοκιμάστε ξανά.' }
-  }
+  // The owner_membership row is inserted by the on_restaurant_created
+  // trigger (handle_restaurant_created — SECURITY DEFINER, with ON CONFLICT
+  // DO NOTHING), so the user is already a member by the time we get here.
+  // We used to insert that row again from the action and it consistently
+  // duplicate-keyed against the trigger's row — failing onboarding mid-flight
+  // and leaving restaurants with no tables seeded. Don't do that.
 
   // Seed default tables in a simple grid layout (5 columns). All new tables
   // start at 4 seats / square shape — owner edits capacity per-table later.
