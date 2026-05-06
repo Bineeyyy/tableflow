@@ -5,11 +5,15 @@ import Link from 'next/link';
 import { UtensilsCrossed, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { register } from '@/app/actions/auth';
+import { PasswordStrength } from '@/components/auth/password-strength';
 
 export default function RegisterPage() {
   const [state, action, pending] = useActionState(register, undefined);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  // Local mirror of the password input. The form still POSTs the raw value;
+  // we only read it client-side for the strength indicator.
+  const [password, setPassword] = useState('');
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex">
@@ -105,6 +109,8 @@ export default function RegisterPage() {
                   name="password"
                   required
                   minLength={6}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/20 transition-colors pr-12"
                 />
@@ -116,6 +122,7 @@ export default function RegisterPage() {
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
+              <PasswordStrength password={password} />
             </div>
             <div>
               <label className="block text-[12px] font-semibold text-white/70 mb-2 uppercase tracking-wider">Επαλήθευση κωδικού</label>

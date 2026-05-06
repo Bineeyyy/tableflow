@@ -10,7 +10,7 @@ type Filter = 'upcoming' | 'seated' | 'done';
 
 const FILTERS: { key: Filter; label: string; statuses: ReservationStatus[] }[] = [
   { key: 'upcoming', label: 'Επερχόμενες', statuses: ['pending', 'confirmed'] },
-  { key: 'seated',   label: 'Σερβιρίζονται', statuses: ['seated'] },
+  { key: 'seated',   label: 'Σερβίρονται', statuses: ['seated'] },
   { key: 'done',     label: 'Ολοκληρ.',     statuses: ['completed', 'cancelled'] },
 ];
 

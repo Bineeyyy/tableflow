@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { UtensilsCrossed, Eye, EyeOff, ArrowRight, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
+import { PasswordStrength } from '@/components/auth/password-strength';
 
 function ResetPasswordContent() {
   const searchParams = useSearchParams();
@@ -119,6 +120,7 @@ function ResetPasswordContent() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
+                  minLength={6}
                   placeholder="••••••••"
                   className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/20 transition-colors pr-12"
                 />
@@ -130,6 +132,7 @@ function ResetPasswordContent() {
                   {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
+              <PasswordStrength password={password} />
             </div>
 
             <div>

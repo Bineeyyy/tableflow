@@ -316,7 +316,13 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
 
       {/* Modal */}
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editItem ? 'Επεξεργασία Κράτησης' : 'Νέα Κράτηση'} size="lg">
-        <div className="grid grid-cols-2 gap-4">
+        {/* Form-wrapped so Enter on any input submits, matching every other
+            data-entry form on the web. The textarea (Σημειώσεις) keeps its
+            native multi-line Enter — only single-line inputs trigger submit. */}
+        <form
+          onSubmit={(e) => { e.preventDefault(); save(); }}
+          className="grid grid-cols-2 gap-4"
+        >
           {error && (
             <div className="col-span-2 px-3 py-2 bg-[#EF4444]/10 border border-[#EF4444]/30 rounded-lg text-[#B91C1C] text-[13px]">
               {error}
@@ -378,11 +384,11 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
               className="w-full px-3 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15 resize-none" />
           </div>
           <div className="col-span-2 flex gap-3 pt-2 border-t border-[#E5E7EB]">
-            <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] font-semibold text-[#0A0A0A] hover:bg-[#F8F8F8] transition-colors">
+            <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] font-semibold text-[#0A0A0A] hover:bg-[#F8F8F8] transition-colors">
               Ακύρωση
             </button>
             <button
-              onClick={save}
+              type="submit"
               disabled={saving || !form.name || !form.date || !form.time || !form.guests}
               className="flex-1 px-4 py-2.5 bg-[#F97316] hover:bg-[#EA580C] disabled:opacity-40 text-white text-[13px] font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
             >
@@ -392,7 +398,7 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
               }
             </button>
           </div>
-        </div>
+        </form>
       </Modal>
 
       <Modal

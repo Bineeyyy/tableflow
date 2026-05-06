@@ -14,7 +14,24 @@ export async function createRestaurant(_: unknown, formData: FormData) {
   const name = ((formData.get('name') as string | null) ?? '').trim()
   const address = ((formData.get('address') as string | null) ?? '').trim()
   const phone = ((formData.get('phone') as string | null) ?? '').trim()
-  const numTables = Math.min(50, Math.max(1, parseInt(formData.get('numTables') as string) || 4))
+  // numTables previously silently clamped to [1, 50] — a user who typed 100
+  // got 50 created and assumed the form was buggy. Validate explicitly: empty
+  // falls back to the in-form default of 4, anything else must parse and be
+  // in range or we return a clear Greek error so the user can correct it.
+  const rawNumTables = (formData.get('numTables') as string | null)?.trim() ?? ''
+  let numTables: number
+  if (rawNumTables === '') {
+    numTables = 4
+  } else {
+    const parsed = parseInt(rawNumTables, 10)
+    if (!Number.isFinite(parsed)) {
+      return { error: 'Ο αριθμός τραπεζιών δεν είναι έγκυρος' }
+    }
+    if (parsed < 1 || parsed > 50) {
+      return { error: 'Ο αριθμός τραπεζιών πρέπει να είναι μεταξύ 1 και 50' }
+    }
+    numTables = parsed
+  }
 
   // Length caps are server-side defence-in-depth — the form already restricts
   // most of these, but the action is callable directly via fetch.

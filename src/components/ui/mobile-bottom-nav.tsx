@@ -66,7 +66,7 @@ export function MobileBottomNav() {
               href={href}
               prefetch
               className={cn(
-                'flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold tracking-tight',
+                'flex-1 flex flex-col items-center justify-center gap-0.5 text-[12px] font-bold tracking-tight',
                 isActive ? 'text-[#F97316]' : 'text-[#6B7280]'
               )}
             >
@@ -86,7 +86,7 @@ export function MobileBottomNav() {
           aria-controls="mobile-more-sheet"
           aria-label="Περισσότερες επιλογές"
           className={cn(
-            'flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold tracking-tight',
+            'flex-1 flex flex-col items-center justify-center gap-0.5 text-[12px] font-bold tracking-tight',
             moreActive || moreOpen ? 'text-[#F97316]' : 'text-[#6B7280]'
           )}
         >
