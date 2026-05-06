@@ -85,6 +85,15 @@ export async function setTableOccupancy(tableId: string, params:
 // Walk-in: assign the smallest available table that fits the party and flip it
 // to occupied. Returns the assigned table number so the UI can show it.
 // (No order is created — the orders module has been removed from the app.)
+//
+// The pick-then-update pair was previously a TOCTOU race: two concurrent
+// walk-ins both see the same smallest-fit candidate, both UPDATE it, and
+// the second silently overwrites the first party's guest count. Fix is to
+// claim the row atomically with `WHERE status = 'available'` — concurrent
+// callers race on the predicate; only one UPDATE matches, the other gets
+// zero rows back and retries with a fresh pick. Bounded so a malicious or
+// pathological loop can't keep us spinning forever.
+const WALKIN_MAX_ATTEMPTS = 5
 export async function createWalkin(guests: number) {
   if (guests < 1 || guests > 20) return { error: 'Μη έγκυρος αριθμός ατόμων' }
 
@@ -95,38 +104,54 @@ export async function createWalkin(guests: number) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Μη εξουσιοδοτημένος' }
 
-  // Smallest available table that fits the party — keeps small tables for
-  // small groups when possible.
-  const { data: candidate, error: pickErr } = await supabase
-    .from('restaurant_tables')
-    .select('id, number, seats')
-    .eq('restaurant_id', restaurantId)
-    .eq('status', 'available')
-    .gte('seats', guests)
-    .order('seats', { ascending: true })
-    .order('number', { ascending: true })
-    .limit(1)
-    .maybeSingle()
+  for (let attempt = 0; attempt < WALKIN_MAX_ATTEMPTS; attempt++) {
+    // Smallest available table that fits the party — keeps small tables for
+    // small groups when possible.
+    const { data: candidate, error: pickErr } = await supabase
+      .from('restaurant_tables')
+      .select('id, number, seats')
+      .eq('restaurant_id', restaurantId)
+      .eq('status', 'available')
+      .gte('seats', guests)
+      .order('seats', { ascending: true })
+      .order('number', { ascending: true })
+      .limit(1)
+      .maybeSingle()
 
-  if (pickErr) {
-    console.error('[waiter] pick table failed:', pickErr)
-    return { error: 'Σφάλμα κατά την επιλογή τραπεζιού.' }
+    if (pickErr) {
+      console.error('[waiter] pick table failed:', pickErr)
+      return { error: 'Σφάλμα κατά την επιλογή τραπεζιού.' }
+    }
+    if (!candidate) return { error: 'Δεν υπάρχει διαθέσιμο τραπέζι αυτής της χωρητικότητας' }
+
+    // Atomic claim — predicate `status = 'available'` is evaluated by
+    // postgres at update time, so a concurrent claim that already flipped
+    // the row to 'occupied' makes this UPDATE match zero rows. We detect
+    // that via the empty .select() result and retry with the next pick.
+    const { data: claimed, error: claimErr } = await supabase
+      .from('restaurant_tables')
+      .update({ status: 'occupied', current_guests: guests })
+      .eq('id', candidate.id)
+      .eq('restaurant_id', restaurantId)
+      .eq('status', 'available')
+      .select('id, number')
+
+    if (claimErr) {
+      console.error('[waiter] mark occupied failed:', claimErr)
+      return { error: 'Σφάλμα κατά την ενημέρωση τραπεζιού.' }
+    }
+    if (claimed && claimed.length > 0) {
+      revalidatePath('/dashboard/waiter')
+      revalidatePath('/dashboard')
+      return { success: true, tableNumber: candidate.number }
+    }
+    // Lost the race on this candidate — loop to pick the next-best fit.
   }
-  if (!candidate) return { error: 'Δεν υπάρχει διαθέσιμο τραπέζι αυτής της χωρητικότητας' }
 
-  const { error: statusErr } = await supabase
-    .from('restaurant_tables')
-    .update({ status: 'occupied', current_guests: guests })
-    .eq('id', candidate.id)
-    .eq('restaurant_id', restaurantId)
-  if (statusErr) {
-    console.error('[waiter] mark occupied failed:', statusErr)
-    return { error: 'Σφάλμα κατά την ενημέρωση τραπεζιού.' }
-  }
-
-  revalidatePath('/dashboard/waiter')
-  revalidatePath('/dashboard')
-  return { success: true, tableNumber: candidate.number }
+  // Either every candidate kept getting claimed out from under us (very
+  // contended) or nothing fits. Surface the same Greek message the no-fit
+  // path uses so the modal renders consistently.
+  return { error: 'Δεν υπάρχει διαθέσιμο τραπέζι αυτής της χωρητικότητας' }
 }
 
 // Mark a reservation as seated — sets the reservation status and flips the
