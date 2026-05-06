@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { stripe, STRIPE_PRICES } from '@/lib/stripe';
+import { isSameOrigin } from '@/lib/http/same-origin';
 
 const RESTAURANT_COOKIE = 'tf_restaurant_id';
 
 export async function POST(request: NextRequest) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   // Validate env config first so a misconfigured deployment fails loudly
   // instead of silently dying inside the Stripe SDK.
   if (!process.env.STRIPE_SECRET_KEY) {

@@ -12,10 +12,17 @@ import {
 import { cn } from '@/lib/utils';
 
 // Read the live price from Stripe so the displayed amount always matches what
-// users will be charged at checkout. Falls back to the marketing price (29€)
-// if Stripe isn't reachable or the env var isn't set.
+// users will be charged at checkout. The fallback is read from env vars
+// (PRO_PRICE_FALLBACK_AMOUNT / _INTERVAL) so ops can sync them whenever the
+// Stripe price changes. The hardcoded "29€" backstop is the last-resort copy
+// for dev and for the brief window between a Stripe price change and the env
+// vars being updated — it shrinks the drift, but ops still owns keeping the
+// fallback aligned.
 async function getProPriceLabel(): Promise<{ amount: string; interval: string }> {
-  const FALLBACK = { amount: '29€', interval: '/μήνα' };
+  const FALLBACK = {
+    amount: process.env.PRO_PRICE_FALLBACK_AMOUNT || '29€',
+    interval: process.env.PRO_PRICE_FALLBACK_INTERVAL || '/μήνα',
+  };
   const priceId = process.env.STRIPE_PRO_PRICE_ID;
   if (!priceId || !process.env.STRIPE_SECRET_KEY) return FALLBACK;
   try {

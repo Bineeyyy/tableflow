@@ -170,7 +170,13 @@ export function SettingsForm({ restaurant, tableCount, tables, userEmail, userFu
   const [profileSaved, setProfileSaved] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
-  const [pwd, setPwd] = useState({ current: '', next: '' });
+  // Password fields are uncontrolled: storing the live values in React state
+  // would surface them in React DevTools. Refs hold the DOM elements; we read
+  // .value on submit and wipe it after. Lengths are tracked in state purely
+  // to drive the disabled-while-empty submit-button state.
+  const currentPwdRef = useRef<HTMLInputElement>(null);
+  const nextPwdRef = useRef<HTMLInputElement>(null);
+  const [pwdLens, setPwdLens] = useState({ current: 0, next: 0 });
   const [pwdSaving, setPwdSaving] = useState(false);
   const [pwdSaved, setPwdSaved] = useState(false);
   const [pwdError, setPwdError] = useState<string | null>(null);
@@ -197,19 +203,23 @@ export function SettingsForm({ restaurant, tableCount, tables, userEmail, userFu
 
   const handleChangePassword = async () => {
     if (pwdSavingRef.current) return;
+    const current = currentPwdRef.current?.value ?? '';
+    const next = nextPwdRef.current?.value ?? '';
+    if (!current || next.length < 6) return;
     pwdSavingRef.current = true;
     setPwdSaving(true);
     setPwdError(null);
     try {
-      const result = await changePassword({
-        currentPassword: pwd.current,
-        newPassword: pwd.next,
-      });
+      const result = await changePassword({ currentPassword: current, newPassword: next });
       if (result.error) {
         setPwdError(result.error);
         return;
       }
-      setPwd({ current: '', next: '' });
+      // Clear the DOM values directly — never let the password sit in any
+      // place a debugger could snapshot longer than necessary.
+      if (currentPwdRef.current) currentPwdRef.current.value = '';
+      if (nextPwdRef.current) nextPwdRef.current.value = '';
+      setPwdLens({ current: 0, next: 0 });
       setPwdSaved(true);
       setTimeout(() => setPwdSaved(false), 2500);
     } finally {
@@ -498,10 +508,12 @@ export function SettingsForm({ restaurant, tableCount, tables, userEmail, userFu
                   <div className="space-y-3">
                     <div className="relative">
                       <input
+                        ref={currentPwdRef}
                         type={showPassword ? 'text' : 'password'}
                         placeholder="Τρέχων κωδικός"
-                        value={pwd.current}
-                        onChange={e => setPwd(p => ({ ...p, current: e.target.value }))}
+                        autoComplete="current-password"
+                        defaultValue=""
+                        onChange={e => setPwdLens(p => ({ ...p, current: e.target.value.length }))}
                         className="w-full px-4 py-2.5 pr-10 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15"
                       />
                       <button
@@ -513,10 +525,12 @@ export function SettingsForm({ restaurant, tableCount, tables, userEmail, userFu
                       </button>
                     </div>
                     <input
+                      ref={nextPwdRef}
                       type="password"
                       placeholder="Νέος κωδικός (τουλάχιστον 6 χαρακτήρες)"
-                      value={pwd.next}
-                      onChange={e => setPwd(p => ({ ...p, next: e.target.value }))}
+                      autoComplete="new-password"
+                      defaultValue=""
+                      onChange={e => setPwdLens(p => ({ ...p, next: e.target.value.length }))}
                       className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15"
                     />
                   </div>
@@ -527,7 +541,7 @@ export function SettingsForm({ restaurant, tableCount, tables, userEmail, userFu
                     </div>
                     <button
                       onClick={handleChangePassword}
-                      disabled={pwdSaving || !pwd.current || pwd.next.length < 6}
+                      disabled={pwdSaving || pwdLens.current === 0 || pwdLens.next < 6}
                       className="px-4 py-2 bg-[#0A0A0A] hover:bg-[#262626] disabled:opacity-40 disabled:cursor-not-allowed text-white text-[12px] font-bold rounded-lg transition-colors"
                     >
                       {pwdSaving ? 'Ενημέρωση…' : 'Αλλαγή κωδικού'}

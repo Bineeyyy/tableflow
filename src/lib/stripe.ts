@@ -25,8 +25,19 @@ export type SubscriptionStatus =
   | 'active' | 'trialing' | 'canceling' | 'past_due' | 'cancelled'
   | 'incomplete' | 'incomplete_expired' | 'unpaid';
 
-// 'canceling' is intentionally NOT blocked — the user clicked Cancel in the
-// Stripe portal but still has paid access until the current period ends.
+// Block any status that means the customer no longer has a valid paid
+// subscription. 'canceling' is intentionally NOT blocked — the user clicked
+// Cancel in the Stripe portal but still has paid access until the current
+// period ends. 'incomplete' is also not blocked: it's transient (initial
+// checkout still in flight) and Stripe will move it to active, past_due, or
+// incomplete_expired within a few minutes.
+//   - past_due: payment failed but Stripe is still retrying within dunning.
+//   - cancelled: subscription terminated.
+//   - incomplete_expired: the initial payment timed out without succeeding.
+//   - unpaid: Stripe exhausted all retries and gave up — definitely blocked.
 export function isAccessBlocked(status: string | null): boolean {
-  return status === 'past_due' || status === 'cancelled';
+  return status === 'past_due'
+    || status === 'cancelled'
+    || status === 'incomplete_expired'
+    || status === 'unpaid';
 }
