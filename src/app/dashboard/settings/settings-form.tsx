@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { TopBar } from '@/components/ui/topbar';
 import { cn } from '@/lib/utils';
 import {
-  Store, Clock, Bell, User, Grid3x3,
+  Store, Clock, User, Grid3x3,
   Save, Eye, EyeOff, ToggleLeft, ToggleRight, MapPin, Phone, Mail, Utensils,
 } from 'lucide-react';
 import { saveRestaurantSettings, updateTables, type TableEdit } from '@/app/actions/settings';
@@ -14,13 +14,15 @@ import { TABLE_ZONES } from '@/types';
 import type { Table } from '@/types';
 import type { Tables } from '@/types/database.types';
 
-type Tab = 'restaurant' | 'tables' | 'hours' | 'notifications' | 'account';
+type Tab = 'restaurant' | 'tables' | 'hours' | 'account';
 
+// "Ειδοποιήσεις" tab removed — the toggles only mutated component state and
+// no notification system actually delivered them. Reinstate when real email/
+// SMS/push infrastructure exists.
 const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
   { key: 'restaurant', label: 'Εστιατόριο', icon: Store },
   { key: 'tables', label: 'Τραπέζια', icon: Grid3x3 },
   { key: 'hours', label: 'Ωράριο', icon: Clock },
-  { key: 'notifications', label: 'Ειδοποιήσεις', icon: Bell },
   { key: 'account', label: 'Λογαριασμός', icon: User },
 ];
 
@@ -51,19 +53,6 @@ function FieldInput({ label, icon: Icon, ...props }: { label: string; icon: Reac
         <Icon size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280]" />
         <input {...props} className="w-full pl-9 pr-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15 transition-colors" />
       </div>
-    </div>
-  );
-}
-
-function Toggle({ enabled, onToggle, label }: { enabled: boolean; onToggle: () => void; label: string }) {
-  return (
-    <div className="flex items-center justify-between py-3.5 border-b border-[#E5E7EB] last:border-0">
-      <span className="text-[13px] font-medium text-[#0A0A0A]">{label}</span>
-      <button onClick={onToggle} className="text-[#6B7280] hover:text-[#0A0A0A] transition-colors">
-        {enabled
-          ? <ToggleRight size={28} className="text-[#F97316]" />
-          : <ToggleLeft size={28} className="text-[#D1D5DB]" />}
-      </button>
     </div>
   );
 }
@@ -129,11 +118,6 @@ export function SettingsForm({ restaurant, tableCount, tables, userEmail, userFu
     phone: restaurant?.phone ?? '',
     email: restaurant?.email ?? '',
     capacity: String(tableCount || 0),
-  });
-
-  const [notifs, setNotifs] = useState({
-    newReservation: true, orderClosed: false, lowOccupancy: true,
-    dailySummary: true, marketingEmails: false,
   });
 
   const [profileName, setProfileName] = useState(userFullName);
@@ -398,19 +382,6 @@ export function SettingsForm({ restaurant, tableCount, tables, userEmail, userFu
                       )}
                     </div>
                   ))}
-                </div>
-              </>
-            )}
-
-            {tab === 'notifications' && (
-              <>
-                <h3 className="font-bold text-[#0A0A0A] tracking-tight flex items-center gap-2"><Bell size={17} className="text-[#F97316]" />Ειδοποιήσεις</h3>
-                <div>
-                  <Toggle enabled={notifs.newReservation} onToggle={() => setNotifs(n => ({ ...n, newReservation: !n.newReservation }))} label="Νέα κράτηση" />
-                  <Toggle enabled={notifs.orderClosed} onToggle={() => setNotifs(n => ({ ...n, orderClosed: !n.orderClosed }))} label="Κλείσιμο παραγγελίας" />
-                  <Toggle enabled={notifs.lowOccupancy} onToggle={() => setNotifs(n => ({ ...n, lowOccupancy: !n.lowOccupancy }))} label="Χαμηλή πληρότητα (< 20%)" />
-                  <Toggle enabled={notifs.dailySummary} onToggle={() => setNotifs(n => ({ ...n, dailySummary: !n.dailySummary }))} label="Ημερήσια περίληψη (email)" />
-                  <Toggle enabled={notifs.marketingEmails} onToggle={() => setNotifs(n => ({ ...n, marketingEmails: !n.marketingEmails }))} label="Newsletter & ανακοινώσεις" />
                 </div>
               </>
             )}
