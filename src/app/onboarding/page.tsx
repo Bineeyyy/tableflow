@@ -145,7 +145,7 @@ export default function OnboardingPage() {
               {[
                 'Εστιατόριο με τα στοιχεία σας',
                 'Αυτόματη διάταξη τραπεζιών στην κάτοψη',
-                'Έτοιμο για κρατήσεις και παραγγελίες',
+                'Έτοιμο για κρατήσεις και διαχείριση μενού',
               ].map((item) => (
                 <div key={item} className="flex items-center gap-2">
                   <CheckCircle2 size={15} className="text-[#F97316] flex-shrink-0" strokeWidth={2.4} />
