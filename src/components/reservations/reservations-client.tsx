@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { Modal } from '@/components/ui/modal';
+import { UndoToast } from '@/components/ui/undo-toast';
+import { useUndoAction } from '@/hooks/use-undo-action';
 import { Reservation, ReservationStatus, Table } from '@/types';
 import { upsertReservation, deleteReservation, updateReservationStatus } from '@/app/actions/reservations';
 import { cn } from '@/lib/utils';
 import {
-  Plus, Phone, Users, Clock, CalendarDays,
+  Plus, Phone, Users, Clock, CalendarDays, Printer,
   CheckCircle2, AlertCircle, XCircle, UtensilsCrossed,
   Pencil, Trash2, ChevronDown,
 } from 'lucide-react';
@@ -125,26 +127,62 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
     }
   };
 
-  // Optimistic delete: snapshot first so we can roll back if the server rejects
-  // (e.g. cookie cleared, restaurant switched, RLS denial).
-  const remove = async (id: string) => {
+  // Destructive actions defer the server call by 5s and surface an undo toast.
+  // Less destructive status changes (pending/confirmed/seated/completed) commit
+  // immediately — the user can flip them back by reopening the menu.
+  const undoAction = useUndoAction(5000);
+
+  const remove = (id: string) => {
+    const target = reservations.find(r => r.id === id);
+    if (!target) return;
     const snapshot = reservations;
     setReservations(prev => prev.filter(r => r.id !== id));
-    const res = await deleteReservation(id);
-    if ('error' in res) {
-      console.error('Failed to delete reservation:', res.error);
-      setReservations(snapshot);
-    }
+    undoAction.run({
+      id: `del-${id}`,
+      label: `Διαγράφηκε η κράτηση ${target.name}`,
+      revert: () => setReservations(snapshot),
+      commit: async () => {
+        const res = await deleteReservation(id);
+        if ('error' in res) {
+          console.error('Failed to delete reservation:', res.error);
+          setReservations(snapshot);
+        }
+      },
+    });
   };
 
-  const changeStatus = async (id: string, status: ReservationStatus) => {
+  const changeStatus = (id: string, status: ReservationStatus) => {
+    const target = reservations.find(r => r.id === id);
+    if (!target) return;
     const snapshot = reservations;
     setReservations(prev => prev.map(r => r.id === id ? { ...r, status } : r));
-    const res = await updateReservationStatus(id, status);
-    if ('error' in res) {
-      console.error('Failed to update status:', res.error);
-      setReservations(snapshot);
+
+    // Cancellation is reservation-killing in practice — surface undo. Other
+    // status flips are easily corrected by reopening the menu, so we commit
+    // them straight away.
+    if (status === 'cancelled' && target.status !== 'cancelled') {
+      undoAction.run({
+        id: `cancel-${id}`,
+        label: `Ακυρώθηκε η κράτηση ${target.name}`,
+        revert: () => setReservations(snapshot),
+        commit: async () => {
+          const res = await updateReservationStatus(id, status);
+          if ('error' in res) {
+            console.error('Failed to update status:', res.error);
+            setReservations(snapshot);
+          }
+        },
+      });
+      return;
     }
+
+    void (async () => {
+      const res = await updateReservationStatus(id, status);
+      if ('error' in res) {
+        console.error('Failed to update status:', res.error);
+        setReservations(snapshot);
+      }
+    })();
   };
 
   const getTableLabel = (tableId?: string) => {
@@ -197,13 +235,31 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
             ))}
           </div>
 
-          <button
-            onClick={openAdd}
-            className="flex items-center gap-2 px-4 py-2 bg-[#F97316] hover:bg-[#EA580C] text-white text-[13px] font-bold rounded-lg transition-colors active:scale-[0.98]"
-          >
-            <Plus size={16} strokeWidth={2.6} />
-            Νέα Κράτηση
-          </button>
+          <div className="flex gap-2">
+            {/* Print: opens a clean A4-style sheet for the currently filtered
+                day (today/tomorrow). 'all' falls back to today since nobody
+                wants to print every reservation in the database on one page. */}
+            <a
+              href={`/dashboard/reservations/print?date=${
+                filter === 'tomorrow' ? tomorrow : today
+              }`}
+              target="_blank"
+              rel="noopener"
+              className="flex items-center gap-2 px-3 py-2 bg-white text-[#0A0A0A] border border-[#E5E7EB] hover:bg-[#F8F8F8] text-[13px] font-bold rounded-lg transition-colors active:scale-[0.98]"
+              title="Εκτύπωση κρατήσεων"
+            >
+              <Printer size={15} strokeWidth={2.4} />
+              <span className="hidden sm:inline">Εκτύπωση</span>
+            </a>
+
+            <button
+              onClick={openAdd}
+              className="flex items-center gap-2 px-4 py-2 bg-[#F97316] hover:bg-[#EA580C] text-white text-[13px] font-bold rounded-lg transition-colors active:scale-[0.98]"
+            >
+              <Plus size={16} strokeWidth={2.6} />
+              Νέα Κράτηση
+            </button>
+          </div>
         </div>
 
         {/* List */}
@@ -434,6 +490,8 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
           </div>
         </div>
       </Modal>
+
+      <UndoToast pending={undoAction.pending} undo={undoAction.undo} delayMs={undoAction.delayMs} />
     </>
   );
 }

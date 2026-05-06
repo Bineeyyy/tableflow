@@ -2,6 +2,8 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { Modal } from '@/components/ui/modal';
+import { UndoToast } from '@/components/ui/undo-toast';
+import { useUndoAction } from '@/hooks/use-undo-action';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, UtensilsCrossed, Search } from 'lucide-react';
 import {
@@ -59,6 +61,9 @@ export function MenuClient({ initialItems, categories }: Props) {
   const savingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  // Defer destructive deletes by 5s with an undo toast — easier than building
+  // a full trash + restore flow when a misclick is the dominant failure mode.
+  const undoAction = useUndoAction(5000);
 
   const labelBySlug = new Map(categories.map(c => [c.slug, c.name]));
 
@@ -167,15 +172,23 @@ export function MenuClient({ initialItems, categories }: Props) {
     }
   };
 
-  const deleteRow = async (id: string) => {
-    const prev = items;
-    setItems(prev.filter(i => i.id !== id));
-    const res = await deleteMenuItem(id);
-    if (res.error) {
-      // Restore on failure.
-      setItems(prev);
-      console.error('Failed to delete:', res.error);
-    }
+  const deleteRow = (id: string) => {
+    const target = items.find(i => i.id === id);
+    if (!target) return;
+    const snapshot = items;
+    setItems(snapshot.filter(i => i.id !== id));
+    undoAction.run({
+      id: `del-${id}`,
+      label: `Διαγράφηκε: ${target.name}`,
+      revert: () => setItems(snapshot),
+      commit: async () => {
+        const res = await deleteMenuItem(id);
+        if (res.error) {
+          console.error('Failed to delete:', res.error);
+          setItems(snapshot);
+        }
+      },
+    });
   };
 
   return (
@@ -367,6 +380,8 @@ export function MenuClient({ initialItems, categories }: Props) {
           </div>
         </div>
       </Modal>
+
+      <UndoToast pending={undoAction.pending} undo={undoAction.undo} delayMs={undoAction.delayMs} />
     </>
   );
 }
