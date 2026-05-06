@@ -2,17 +2,12 @@ import { TopBar } from '@/components/ui/topbar';
 import { StatCard } from '@/components/ui/stat-card';
 import { FloorPlan } from '@/components/floor-plan/floor-plan';
 import { MobileRedirect } from '@/components/ui/mobile-redirect';
-import { formatCurrency } from '@/lib/utils';
 import {
   getMyRestaurant,
   getTablesForRestaurant,
   getReservationsForRestaurant,
 } from '@/lib/supabase/server-queries';
-import { UtensilsCrossed, Users, TrendingUp, Clock } from 'lucide-react';
-
-// Per-cover spend used to estimate today's revenue from confirmed reservations.
-// Roughly the average ticket size for a casual taverna cover.
-const ESTIMATED_REVENUE_PER_RESERVATION = 30;
+import { UtensilsCrossed, Users, UserCheck, Clock } from 'lucide-react';
 
 export default async function DashboardPage() {
   const restaurant = await getMyRestaurant();
@@ -44,13 +39,14 @@ export default async function DashboardPage() {
   const occupied  = tables.filter(t => t.status === 'occupied').length;
   const available = tables.filter(t => t.status === 'available').length;
 
-  // Reservation-derived metrics — replaces the order-sourced KPIs.
   const activeReservations = todayReservations.filter(
     r => r.status !== 'cancelled' && r.status !== 'completed'
   );
   const expectedGuests   = activeReservations.reduce((sum, r) => sum + r.guests, 0);
   const reservationCount = activeReservations.length;
-  const estimatedRevenue = reservationCount * ESTIMATED_REVENUE_PER_RESERVATION;
+
+  const seatedGuests = tables.reduce((sum, t) => sum + (t.current_guests ?? 0), 0);
+  const totalVisitors = seatedGuests + expectedGuests;
 
   return (
     <>
@@ -66,7 +62,7 @@ export default async function DashboardPage() {
           <StatCard title="Κατειλημμένα" value={`${occupied}/${tables.length}`} subtitle="τραπέζια σε χρήση" icon={UtensilsCrossed} />
           <StatCard title="Διαθέσιμα" value={available} subtitle="τραπέζια ελεύθερα" icon={Clock} />
           <StatCard title="Επισκέπτες Σήμερα" value={expectedGuests} subtitle={`${reservationCount} κρατήσεις`} icon={Users} />
-          <StatCard title="Τζίρος Σήμερα" value={formatCurrency(estimatedRevenue)} subtitle={`εκτίμηση από ${reservationCount} κρατήσεις`} icon={TrendingUp} />
+          <StatCard title="Συνολικοί Επισκέπτες" value={totalVisitors} subtitle={`${seatedGuests} καθισμένοι · ${expectedGuests} αναμενόμενοι`} icon={UserCheck} />
         </div>
 
         {/* Floor Plan */}
