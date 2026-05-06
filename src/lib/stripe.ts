@@ -7,9 +7,11 @@ export const STRIPE_PRICES: Record<string, string> = {
 };
 
 export type SubscriptionStatus =
-  | 'active' | 'trialing' | 'past_due' | 'cancelled'
+  | 'active' | 'trialing' | 'canceling' | 'past_due' | 'cancelled'
   | 'incomplete' | 'incomplete_expired' | 'unpaid';
 
+// 'canceling' is intentionally NOT blocked — the user clicked Cancel in the
+// Stripe portal but still has paid access until the current period ends.
 export function isAccessBlocked(status: string | null): boolean {
   return status === 'past_due' || status === 'cancelled';
 }

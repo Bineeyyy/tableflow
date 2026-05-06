@@ -198,7 +198,9 @@ export default async function BillingPage({
 
   const rawPlan = restaurant?.plan ?? 'free';
   const subStatus = restaurant?.subscription_status ?? null;
-  const isActiveSub = subStatus === 'active' || subStatus === 'trialing';
+  // 'canceling' = user toggled cancel-at-period-end in the portal but still
+  // has paid access until the period ends. Treat as active for display/access.
+  const isActiveSub = subStatus === 'active' || subStatus === 'trialing' || subStatus === 'canceling';
 
   // subscription_status is the canonical source of truth. If the subscription is
   // active in Stripe (or someone manually flipped it in Supabase) but the `plan`

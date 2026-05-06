@@ -15,6 +15,22 @@ const warn = (event: string, data: Record<string, unknown> = {}) =>
 const err = (event: string, data: Record<string, unknown> = {}) =>
   console.error(`[stripe webhook] ${event}`, JSON.stringify(data));
 
+// Translate a Stripe subscription into the value we store in
+// `restaurants.subscription_status`. Two non-pass-through cases:
+//   - active/trialing + cancel_at_period_end=true → 'canceling' (the user
+//     clicked Cancel in the billing portal but still has paid access until
+//     the current period ends; we'll flip to 'cancelled' when
+//     customer.subscription.deleted fires).
+//   - Stripe spells it 'canceled' (US); the rest of this codebase uses
+//     'cancelled' (UK). Normalise here so the DB stays consistent.
+function mapSubscriptionStatus(sub: Stripe.Subscription): string {
+  if (sub.cancel_at_period_end && (sub.status === 'active' || sub.status === 'trialing')) {
+    return 'canceling';
+  }
+  if (sub.status === 'canceled') return 'cancelled';
+  return sub.status;
+}
+
 export async function POST(request: NextRequest) {
   const body = await request.text();
   const signature = request.headers.get('stripe-signature');
@@ -164,6 +180,54 @@ export async function POST(request: NextRequest) {
           throw dbErr;
         }
         log('invoice_failed_update_ok', { stripe_subscription_id: subId, rows: data?.length ?? 0 });
+        break;
+      }
+
+      // ── Subscription state change (cancel-at-period-end, reactivation,
+      //    plan change, status transitions) ──────────────────────────────────
+      // Fires when the user toggles cancel-at-period-end in the Stripe portal,
+      // when payment recovers from past_due, when Stripe pauses/unpauses, etc.
+      // We mirror the latest state into subscription_status; the `plan` column
+      // is intentionally untouched here — Pro access continues until the
+      // period actually ends and customer.subscription.deleted fires.
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object as Stripe.Subscription;
+        const status = mapSubscriptionStatus(subscription);
+
+        const { data, error: dbErr } = await db
+          .from('restaurants')
+          .update({ subscription_status: status })
+          .eq('stripe_subscription_id', subscription.id)
+          .select('id');
+
+        if (dbErr) {
+          err('subscription_updated_update_failed', {
+            subscription_id: subscription.id,
+            stripe_status: subscription.status,
+            cancel_at_period_end: subscription.cancel_at_period_end,
+            computed_status: status,
+            db_error: dbErr.message,
+          });
+          throw dbErr;
+        }
+        if (!data || data.length === 0) {
+          warn('subscription_updated_no_rows', {
+            subscription_id: subscription.id,
+            stripe_status: subscription.status,
+            cancel_at_period_end: subscription.cancel_at_period_end,
+            computed_status: status,
+            hint: 'No restaurant has this stripe_subscription_id stored — checkout.session.completed may not have persisted it yet.',
+          });
+        } else {
+          log('subscription_updated_update_ok', {
+            subscription_id: subscription.id,
+            stripe_status: subscription.status,
+            cancel_at_period_end: subscription.cancel_at_period_end,
+            cancel_at: subscription.cancel_at,
+            computed_status: status,
+            rows: data.length,
+          });
+        }
         break;
       }
 
