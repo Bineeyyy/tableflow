@@ -24,6 +24,7 @@ function mapTable(t: DbTable): Table {
     shape: t.shape,
     label: t.label ?? undefined,
     zone: t.zone ?? undefined,
+    seated_at: t.seated_at ?? undefined,
   };
 }
 

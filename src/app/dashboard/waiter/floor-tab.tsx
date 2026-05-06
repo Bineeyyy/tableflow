@@ -5,6 +5,7 @@ import { Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { setTableOccupancy } from '@/app/actions/waiter';
 import { OccupyModal } from '@/components/ui/occupy-modal';
+import { SeatedDuration } from '@/components/floor-plan/seated-duration';
 import type { Table } from '@/types';
 
 type Props = {
@@ -157,6 +158,15 @@ export function FloorTab({ tables, onTablePatch }: Props) {
               )}>
                 {free ? 'Ελεύθερο' : 'Κατειλημμένο'}
               </div>
+
+              {/* Seated duration — only when the row carries seated_at.
+                  Centered under the status pill so the card layout stays
+                  symmetric whether or not the timer is visible. */}
+              {!free && t.seated_at && (
+                <div className="mt-2 flex justify-center">
+                  <SeatedDuration seatedAt={t.seated_at} variant="inline" />
+                </div>
+              )}
             </button>
           );
         })}

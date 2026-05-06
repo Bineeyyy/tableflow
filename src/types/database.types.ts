@@ -319,6 +319,7 @@ export type Database = {
           pos_x: number
           pos_y: number
           restaurant_id: string
+          seated_at: string | null
           seats: number
           shape: Database["public"]["Enums"]["table_shape"]
           status: Database["public"]["Enums"]["table_status"]
@@ -334,6 +335,7 @@ export type Database = {
           pos_x?: number
           pos_y?: number
           restaurant_id: string
+          seated_at?: string | null
           seats?: number
           shape?: Database["public"]["Enums"]["table_shape"]
           status?: Database["public"]["Enums"]["table_status"]
@@ -349,6 +351,7 @@ export type Database = {
           pos_x?: number
           pos_y?: number
           restaurant_id?: string
+          seated_at?: string | null
           seats?: number
           shape?: Database["public"]["Enums"]["table_shape"]
           status?: Database["public"]["Enums"]["table_status"]

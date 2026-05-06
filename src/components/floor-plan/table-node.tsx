@@ -4,6 +4,7 @@ import { memo } from 'react';
 import { Table, TableStatus } from '@/types';
 import { getStatusLabel, cn } from '@/lib/utils';
 import { Users } from 'lucide-react';
+import { SeatedDuration } from './seated-duration';
 
 // On dark canvas: dark fill + bright border + colored glow so tables pop.
 const STATUS_COLORS: Record<TableStatus, { border: string; glow: string; accent: string }> = {
@@ -61,6 +62,14 @@ export const TableNode = memo(function TableNode({ table, isSelected, onClick }:
             </span>
           </div>
         </div>
+        {/* Duration badge — pinned just below the table, only shown when
+            the row carries a seated_at timestamp. Backfilled NULLs (for
+            tables occupied before this column existed) silently skip. */}
+        {!free && table.seated_at && (
+          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 pointer-events-none">
+            <SeatedDuration seatedAt={table.seated_at} />
+          </div>
+        )}
       </div>
 
       {/* Hover tooltip */}

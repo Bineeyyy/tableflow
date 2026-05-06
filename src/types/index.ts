@@ -14,6 +14,9 @@ export interface Table {
   label?: string;
   zone?: string;
   current_order_id?: string;
+  // ISO timestamp of when the current party was seated. Cleared when the
+  // table is freed. Used for the "Καθισμένοι Xλ" indicator.
+  seated_at?: string;
 }
 
 // Canonical zone presets shown in the settings dropdown. Stored as plain text

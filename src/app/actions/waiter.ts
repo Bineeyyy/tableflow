@@ -61,9 +61,13 @@ export async function setTableOccupancy(tableId: string, params:
     if (!Number.isInteger(params.guests) || params.guests < 1 || params.guests > 20) {
       return { error: 'Μη έγκυρος αριθμός ατόμων' }
     }
+    // seated_at marks when the current party arrived — used by the floor
+    // plan to render an "X minutes seated" indicator. Always set on occupy
+    // (not just on the available→occupied flip) so re-entering the guest
+    // count doesn't preserve a stale duration from the previous party.
     const { error } = await supabase
       .from('restaurant_tables')
-      .update({ status: 'occupied', current_guests: params.guests })
+      .update({ status: 'occupied', current_guests: params.guests, seated_at: new Date().toISOString() })
       .eq('id', tableId)
       .eq('restaurant_id', restaurantId)
     if (error) {
@@ -73,7 +77,7 @@ export async function setTableOccupancy(tableId: string, params:
   } else {
     const { error } = await supabase
       .from('restaurant_tables')
-      .update({ status: 'available', current_guests: 0 })
+      .update({ status: 'available', current_guests: 0, seated_at: null })
       .eq('id', tableId)
       .eq('restaurant_id', restaurantId)
     if (error) {
@@ -133,7 +137,7 @@ export async function createWalkin(guests: number) {
     // that via the empty .select() result and retry with the next pick.
     const { data: claimed, error: claimErr } = await supabase
       .from('restaurant_tables')
-      .update({ status: 'occupied', current_guests: guests })
+      .update({ status: 'occupied', current_guests: guests, seated_at: new Date().toISOString() })
       .eq('id', candidate.id)
       .eq('restaurant_id', restaurantId)
       .eq('status', 'available')
@@ -218,7 +222,7 @@ export async function seatReservation(reservationId: string, tableId?: string) {
 
   const { error: tblErr } = await supabase
     .from('restaurant_tables')
-    .update({ status: 'occupied', current_guests: reservation.party_size })
+    .update({ status: 'occupied', current_guests: reservation.party_size, seated_at: new Date().toISOString() })
     .eq('id', resolvedTableId)
     .eq('restaurant_id', restaurantId)
   if (tblErr) {

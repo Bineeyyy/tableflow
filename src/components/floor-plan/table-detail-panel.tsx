@@ -6,6 +6,7 @@ import {
   Users, Clock, X, ChefHat, CheckCircle, UserPlus,
   Phone, MessageSquare,
 } from 'lucide-react';
+import { SeatedDuration } from './seated-duration';
 
 interface TableDetailPanelProps {
   table: Table;
@@ -47,7 +48,7 @@ export function TableDetailPanel({
             </div>
           </div>
         </div>
-        <div className="mt-3">
+        <div className="mt-3 flex items-center gap-2 flex-wrap">
           <span className={cn(
             'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider',
             free ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300',
@@ -55,6 +56,7 @@ export function TableDetailPanel({
             <span className={cn('w-1.5 h-1.5 rounded-full', free ? 'bg-emerald-400' : 'bg-red-400')} />
             {free ? 'Ελεύθερο' : 'Κατειλημμένο'}
           </span>
+          {!free && table.seated_at && <SeatedDuration seatedAt={table.seated_at} />}
         </div>
       </div>
 
