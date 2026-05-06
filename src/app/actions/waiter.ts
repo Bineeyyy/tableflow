@@ -40,26 +40,40 @@ export async function setTableOccupancy(tableId: string, params:
   | { occupied: true; guests: number }
   | { occupied: false }
 ) {
+  // Defence in depth: scope the update to the user's pinned restaurant rather
+  // than relying on RLS alone. Lets us return a clean error if a stale tableId
+  // from a switched-account session leaks into the request, instead of letting
+  // the update silently no-op via RLS.
+  const restaurantId = await pinnedRestaurantId()
+  if (!restaurantId) return { error: 'Μη εξουσιοδοτημένος' }
+  if (typeof tableId !== 'string' || tableId.length === 0 || tableId.length > 64) {
+    return { error: 'Μη έγκυρο τραπέζι' }
+  }
+
   const supabase = await createClient()
 
   if (params.occupied) {
-    if (params.guests < 1 || params.guests > 20) return { error: 'Μη έγκυρος αριθμός ατόμων' }
+    if (!Number.isInteger(params.guests) || params.guests < 1 || params.guests > 20) {
+      return { error: 'Μη έγκυρος αριθμός ατόμων' }
+    }
     const { error } = await supabase
       .from('restaurant_tables')
       .update({ status: 'occupied', current_guests: params.guests })
       .eq('id', tableId)
+      .eq('restaurant_id', restaurantId)
     if (error) {
       console.error('[waiter] occupy table failed:', error)
-      return { error: `Σφάλμα: ${error.message}` }
+      return { error: 'Σφάλμα κατά την ενημέρωση τραπεζιού.' }
     }
   } else {
     const { error } = await supabase
       .from('restaurant_tables')
       .update({ status: 'available', current_guests: 0 })
       .eq('id', tableId)
+      .eq('restaurant_id', restaurantId)
     if (error) {
       console.error('[waiter] free table failed:', error)
-      return { error: `Σφάλμα: ${error.message}` }
+      return { error: 'Σφάλμα κατά την ενημέρωση τραπεζιού.' }
     }
   }
 
@@ -96,7 +110,7 @@ export async function createWalkin(guests: number) {
 
   if (pickErr) {
     console.error('[waiter] pick table failed:', pickErr)
-    return { error: `Σφάλμα: ${pickErr.message}` }
+    return { error: 'Σφάλμα κατά την επιλογή τραπεζιού.' }
   }
   if (!candidate) return { error: 'Δεν υπάρχει διαθέσιμο τραπέζι αυτής της χωρητικότητας' }
 
@@ -104,9 +118,10 @@ export async function createWalkin(guests: number) {
     .from('restaurant_tables')
     .update({ status: 'occupied', current_guests: guests })
     .eq('id', candidate.id)
+    .eq('restaurant_id', restaurantId)
   if (statusErr) {
     console.error('[waiter] mark occupied failed:', statusErr)
-    return { error: `Σφάλμα: ${statusErr.message}` }
+    return { error: 'Σφάλμα κατά την ενημέρωση τραπεζιού.' }
   }
 
   revalidatePath('/dashboard/waiter')
@@ -149,18 +164,20 @@ export async function seatReservation(reservationId: string, tableId?: string) {
     .from('reservations')
     .update({ status: 'seated', table_id: resolvedTableId })
     .eq('id', reservationId)
+    .eq('restaurant_id', restaurantId)
   if (updErr) {
     console.error('[waiter] seat reservation update failed:', updErr)
-    return { error: `Σφάλμα: ${updErr.message}` }
+    return { error: 'Σφάλμα κατά την ενημέρωση κράτησης.' }
   }
 
   const { error: tblErr } = await supabase
     .from('restaurant_tables')
     .update({ status: 'occupied', current_guests: reservation.party_size })
     .eq('id', resolvedTableId)
+    .eq('restaurant_id', restaurantId)
   if (tblErr) {
     console.error('[waiter] seat reservation table failed:', tblErr)
-    return { error: `Σφάλμα: ${tblErr.message}` }
+    return { error: 'Σφάλμα κατά την ενημέρωση τραπεζιού.' }
   }
 
   revalidatePath('/dashboard/waiter')

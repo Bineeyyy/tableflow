@@ -11,12 +11,19 @@ export async function createRestaurant(_: unknown, formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const name = (formData.get('name') as string).trim()
-  const address = (formData.get('address') as string).trim()
-  const phone = (formData.get('phone') as string).trim()
+  const name = ((formData.get('name') as string | null) ?? '').trim()
+  const address = ((formData.get('address') as string | null) ?? '').trim()
+  const phone = ((formData.get('phone') as string | null) ?? '').trim()
   const numTables = Math.min(50, Math.max(1, parseInt(formData.get('numTables') as string) || 4))
 
+  // Length caps are server-side defence-in-depth — the form already restricts
+  // most of these, but the action is callable directly via fetch.
   if (!name) return { error: 'Το όνομα εστιατορίου είναι υποχρεωτικό' }
+  if (name.length > 120) return { error: 'Το όνομα είναι πολύ μεγάλο' }
+  if (address.length > 240) return { error: 'Η διεύθυνση είναι πολύ μεγάλη' }
+  if (phone && !/^[+0-9\s().-]{4,32}$/.test(phone)) {
+    return { error: 'Μη έγκυρος αριθμός τηλεφώνου' }
+  }
 
   // Generate UUID upfront so we can avoid RETURNING (which hits SELECT RLS before
   // the user is in restaurant_members — has_restaurant_access would return false).

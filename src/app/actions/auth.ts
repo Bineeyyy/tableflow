@@ -7,6 +7,11 @@ import { cookies } from 'next/headers'
 
 const RESTAURANT_COOKIE = 'tf_restaurant_id'
 
+// Generic copy used for any failed-login path. We deliberately avoid leaking
+// whether the email exists or what specifically went wrong — those have all
+// been used historically for account enumeration and targeted brute force.
+const GENERIC_AUTH_ERROR = 'Λάθος email ή κωδικός.'
+
 async function cacheRestaurantCookie(
   userId: string,
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -31,62 +36,38 @@ async function cacheRestaurantCookie(
 }
 
 export async function login(_: unknown, formData: FormData) {
-  const email = formData.get('email') as string
+  const email = (formData.get('email') as string | null)?.trim() ?? ''
+  const password = (formData.get('password') as string | null) ?? ''
   const rememberMe = formData.get('rememberMe') === 'on'
 
-  // Admin bypass: skip password for the owner account.
-  // Requires both ADMIN_EMAIL and SUPABASE_SERVICE_ROLE_KEY to be set in Vercel.
-  // If either is missing, falls through to normal login.
-  if (
-    process.env.ADMIN_EMAIL &&
-    process.env.SUPABASE_SERVICE_ROLE_KEY &&
-    email === process.env.ADMIN_EMAIL
-  ) {
-    try {
-      const admin = createAdminClient()
-      const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-        type: 'magiclink',
-        email,
-      })
-      if (linkError || !linkData?.properties) return { error: linkError?.message ?? 'Admin login failed' }
+  if (!email || !password) return { error: GENERIC_AUTH_ERROR }
 
-      const supabase = await createClient(rememberMe ? 3650 : 0)
-      const { data, error } = await supabase.auth.verifyOtp({
-        email,
-        token: linkData.properties.email_otp,
-        type: 'magiclink',
-      })
-      if (error) return { error: error.message }
-      if (data.user) await cacheRestaurantCookie(data.user.id, supabase, rememberMe)
-    } catch {
-      return { error: 'Παρουσιάστηκε σφάλμα κατά τη σύνδεση.' }
-    }
-    redirect('/dashboard')
-  }
-
-  // Normal login flow
+  // Normal login flow — always password-checked. The previous
+  // `email === ADMIN_EMAIL` bypass let anyone who knew the admin's address sign
+  // in with no password; that backdoor has been removed. Admin promotion is now
+  // a property of the database row, not the login flow.
   try {
     const supabase = await createClient(rememberMe ? 3650 : 0)
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password: formData.get('password') as string,
-    })
-    if (error) return { error: error.message }
-    if (data.user) await cacheRestaurantCookie(data.user.id, supabase, rememberMe)
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error || !data.user) return { error: GENERIC_AUTH_ERROR }
+    await cacheRestaurantCookie(data.user.id, supabase, rememberMe)
   } catch {
-    return { error: 'Παρουσιάστηκε σφάλμα. Παρακαλώ δοκιμάστε ξανά.' }
+    return { error: GENERIC_AUTH_ERROR }
   }
   redirect('/dashboard')
 }
 
 export async function register(_: unknown, formData: FormData) {
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
-  const confirmPassword = formData.get('confirmPassword') as string
-  const name = formData.get('name') as string
-  if (password !== confirmPassword) {
-    return { error: 'Οι κωδικοί δεν ταιριάζουν' }
-  }
+  const email = (formData.get('email') as string | null)?.trim() ?? ''
+  const password = (formData.get('password') as string | null) ?? ''
+  const confirmPassword = (formData.get('confirmPassword') as string | null) ?? ''
+  const name = ((formData.get('name') as string | null) ?? '').trim()
+
+  if (!email || !password || !name) return { error: 'Συμπληρώστε όλα τα πεδία.' }
+  if (password.length < 6) return { error: 'Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες.' }
+  if (password !== confirmPassword) return { error: 'Οι κωδικοί δεν ταιριάζουν.' }
+  if (name.length > 120) return { error: 'Πολύ μεγάλο όνομα.' }
+  if (email.length > 254) return { error: 'Πολύ μεγάλη διεύθυνση email.' }
 
   try {
     const supabase = await createClient()
@@ -105,27 +86,21 @@ export async function register(_: unknown, formData: FormData) {
         email_confirm: true,
         user_metadata: { full_name: name },
       })
-      if (createError) return { error: createError.message }
+      // We surface a neutral generic message rather than Supabase's exact
+      // "User already registered" so this endpoint can't be used as an email
+      // enumeration oracle.
+      if (createError) return { error: 'Δεν μπορέσαμε να δημιουργήσουμε λογαριασμό. Δοκιμάστε ξανά.' }
     } else {
-      // Fallback when no service-role key is configured: best-effort signUp.
-      // The user will land on /auth/login and need to confirm via email
-      // before signing in.
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: { data: { full_name: name } },
       })
-      if (signUpError) return { error: signUpError.message }
+      if (signUpError) return { error: 'Δεν μπορέσαμε να δημιουργήσουμε λογαριασμό. Δοκιμάστε ξανά.' }
     }
 
-    // Establish a real session on the SSR client so the redirect lands the
-    // user inside the dashboard (or onboarding) instead of bouncing back to
-    // /auth/login via the proxy.
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    if (signInError) return { error: signInError.message }
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    if (signInError) return { error: GENERIC_AUTH_ERROR }
   } catch {
     return { error: 'Παρουσιάστηκε σφάλμα. Παρακαλώ δοκιμάστε ξανά.' }
   }
@@ -133,29 +108,27 @@ export async function register(_: unknown, formData: FormData) {
   redirect('/dashboard')
 }
 
-export async function forgotPassword(_: unknown, formData: FormData) {
-  const email = formData.get('email') as string
+type ForgotPasswordState = { success?: boolean; error?: string }
+
+export async function forgotPassword(_: unknown, formData: FormData): Promise<ForgotPasswordState> {
+  const email = ((formData.get('email') as string | null) ?? '').trim()
+  if (!email || email.length > 254) {
+    // Same shape as the success branch so callers can't tell whether the email
+    // was even well-formed. The form already restricts client-side.
+    return { success: true }
+  }
   const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://tableflow-sigma.vercel.app'}/auth/reset-password`
 
   // Custom SMTP (Resend) is configured on this project, so Supabase enforces
   // a per-user "1 recovery email per 60 seconds" cooldown rather than the
-  // 2/hour project-wide cap. Critically, admin.generateLink({type:'recovery'})
-  // ALSO consumes that 60-second window — calling it before
-  // resetPasswordForEmail caused every follow-up reset call to 429 with
-  // "you can only request this after 59 seconds", and Supabase never handed
-  // the email to Resend at all (which is why nothing showed up there).
-  // resetPasswordForEmail is the only call we need: it generates the token
-  // and dispatches via the configured SMTP in one shot.
+  // 2/hour project-wide cap. resetPasswordForEmail is the only call we need:
+  // it generates the token and dispatches via the configured SMTP in one shot.
   const supabase = await createClient()
-  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+  await supabase.auth.resetPasswordForEmail(email, { redirectTo })
 
-  // Swallow the per-user cooldown / rate-limit so we (a) don't leak whether
-  // the email is registered and (b) don't punish users for double-clicking
-  // the submit button. Other errors (bad config, real SMTP failures) still
-  // surface to the form.
-  if (error && !/rate limit|over_email_send_rate_limit|after \d+ seconds/i.test(error.message)) {
-    return { error: error.message }
-  }
+  // Always return success regardless of whether the email exists or whether
+  // SMTP rate-limited us. Anything else would let the form be used as an email
+  // enumeration oracle.
   return { success: true }
 }
 

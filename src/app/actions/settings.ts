@@ -49,6 +49,26 @@ export async function saveRestaurantSettings(data: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Μη εξουσιοδοτημένος' }
 
+  // Server-side length & shape validation. The form constrains most of these,
+  // but the action is reachable via fetch so we re-check here.
+  const name = (data.name ?? '').trim()
+  const address = (data.address ?? '').trim()
+  const phone = (data.phone ?? '').trim()
+  const email = (data.email ?? '').trim()
+  if (!name) return { error: 'Το όνομα εστιατορίου είναι υποχρεωτικό' }
+  if (name.length > 120) return { error: 'Το όνομα είναι πολύ μεγάλο' }
+  if (address.length > 240) return { error: 'Η διεύθυνση είναι πολύ μεγάλη' }
+  if (phone && !/^[+0-9\s().-]{4,32}$/.test(phone)) {
+    return { error: 'Μη έγκυρος αριθμός τηλεφώνου' }
+  }
+  if (email && (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+    return { error: 'Μη έγκυρη διεύθυνση email' }
+  }
+  if (!Array.isArray(data.hours) || data.hours.length !== 7) {
+    return { error: 'Μη έγκυρο ωράριο' }
+  }
+  data = { ...data, name, address, phone, email }
+
   // Pin the operation to the cookie's restaurant when present, so a user with
   // multiple restaurants edits the same one the dashboard is showing. Fall back
   // to the oldest owned restaurant otherwise.
@@ -93,7 +113,7 @@ export async function saveRestaurantSettings(data: {
 
   if (updateError) {
     console.error('[settings] restaurant update failed:', updateError)
-    return { error: `Σφάλμα αποθήκευσης: ${updateError.message}` }
+    return { error: 'Σφάλμα αποθήκευσης. Δοκιμάστε ξανά.' }
   }
 
   // Sync restaurant_tables to match requested capacity.

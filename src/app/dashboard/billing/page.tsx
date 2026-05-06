@@ -174,22 +174,26 @@ export default async function BillingPage({
   const cookieStore = await cookies();
   const cookieRestaurantId = cookieStore.get('tf_restaurant_id')?.value ?? null;
 
-  const { data: ownedRestaurants } = await supabase
-    .from('restaurants')
-    .select('id, name, plan, subscription_status, stripe_customer_id, stripe_subscription_id, created_at')
-    .eq('owner_id', user?.id ?? '')
-    .order('created_at', { ascending: true });
+  // Only fetch the owned-restaurants list when the debug pane is open. We used
+  // to fetch it on every page load and dump it (with stripe_customer_id,
+  // stripe_subscription_id, and emails) into Vercel logs as PII — the audit
+  // flagged that as the worst offender on this page.
+  const debugMode = debug === '1';
+  const { data: ownedRestaurants } = debugMode
+    ? await supabase
+        .from('restaurants')
+        .select('id, name, plan, subscription_status, stripe_customer_id, stripe_subscription_id, created_at')
+        .eq('owner_id', user?.id ?? '')
+        .order('created_at', { ascending: true })
+    : { data: null };
 
-  // Always log to server (Vercel) so we can debug without /?debug=1
+  // Minimal page-load breadcrumb — no IDs, no stripe identifiers, no emails.
+  // The debug pane below still surfaces the full snapshot to whoever opens it
+  // with ?debug=1, which is restricted to the signed-in owner anyway.
   console.log('[billing] page load', JSON.stringify({
-    user_id: user?.id ?? null,
-    cookie_tf_restaurant_id: cookieRestaurantId,
-    selected_restaurant_id: restaurant?.id ?? null,
-    selected_plan: restaurant?.plan ?? null,
-    selected_subscription_status: restaurant?.subscription_status ?? null,
-    selected_stripe_subscription_id: restaurant?.stripe_subscription_id ?? null,
-    owned_restaurants_count: ownedRestaurants?.length ?? 0,
-    owned_restaurants: ownedRestaurants ?? [],
+    has_restaurant: !!restaurant,
+    plan: restaurant?.plan ?? null,
+    subscription_status: restaurant?.subscription_status ?? null,
   }));
 
   const rawPlan = restaurant?.plan ?? 'free';
