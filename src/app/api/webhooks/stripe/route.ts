@@ -125,6 +125,13 @@ export async function POST(request: NextRequest) {
       }
 
       // ── Recurring invoice paid — keep subscription active ─────────────────
+      // Stripe doesn't guarantee event ordering, so invoice.paid can land
+      // before checkout.session.completed has stamped stripe_subscription_id
+      // onto the row. In that race we fall back to fetching the subscription,
+      // reading metadata.restaurant_id (set in checkout/route.ts via
+      // subscription_data.metadata) and activating by restaurant_id — without
+      // the fallback the customer pays but never becomes Pro until the next
+      // event cycle.
       case 'invoice.paid': {
         const invoice = event.data.object as Stripe.Invoice;
         const subId = (invoice as unknown as { subscription?: string }).subscription;
@@ -149,13 +156,63 @@ export async function POST(request: NextRequest) {
           });
           throw dbErr;
         }
-        if (!data || data.length === 0) {
-          warn('invoice_paid_no_rows', {
+        if (data && data.length > 0) {
+          log('invoice_paid_update_ok', { stripe_subscription_id: subId, rows: data.length });
+          break;
+        }
+
+        // Out-of-order delivery fallback.
+        let subscription: Stripe.Subscription;
+        try {
+          subscription = await stripe.subscriptions.retrieve(subId);
+        } catch (e) {
+          err('invoice_paid_fetch_subscription_failed', {
             stripe_subscription_id: subId,
-            hint: 'No restaurant has this stripe_subscription_id stored — checkout.session.completed may not have persisted it yet.',
+            message: e instanceof Error ? e.message : String(e),
+          });
+          break;
+        }
+
+        const restaurantId = subscription.metadata?.restaurant_id;
+        if (!restaurantId) {
+          warn('invoice_paid_no_rows_no_metadata', {
+            stripe_subscription_id: subId,
+            hint: 'Subscription has no metadata.restaurant_id — likely created outside the in-app checkout flow.',
+          });
+          break;
+        }
+
+        const { data: reconciled, error: reconcileErr } = await db
+          .from('restaurants')
+          .update({
+            plan: 'pro',
+            stripe_subscription_id: subId,
+            subscription_status: 'active',
+          })
+          .eq('id', restaurantId)
+          .select('id');
+
+        if (reconcileErr) {
+          err('invoice_paid_reconcile_failed', {
+            restaurant_id: restaurantId,
+            stripe_subscription_id: subId,
+            db_error: reconcileErr.message,
+            code: reconcileErr.code,
+          });
+          throw reconcileErr;
+        }
+        if (!reconciled || reconciled.length === 0) {
+          warn('invoice_paid_reconcile_no_rows', {
+            restaurant_id: restaurantId,
+            stripe_subscription_id: subId,
+            hint: 'Restaurant referenced by subscription metadata not found — was it deleted?',
           });
         } else {
-          log('invoice_paid_update_ok', { stripe_subscription_id: subId, rows: data.length });
+          log('invoice_paid_reconciled_via_metadata', {
+            restaurant_id: restaurantId,
+            stripe_subscription_id: subId,
+            rows: reconciled.length,
+          });
         }
         break;
       }
