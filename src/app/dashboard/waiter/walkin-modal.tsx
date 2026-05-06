@@ -19,12 +19,15 @@ export function WalkinModal({
     setBusy(true);
     setError(null);
     const result = await createWalkin(guests);
-    setBusy(false);
+    // Group every error-path setter in one batch so the orange highlight
+    // doesn't briefly survive setBusy(false) before setPicked(null) lands.
     if (result.error || !result.tableNumber) {
-      setError(result.error ?? 'Σφάλμα');
       setPicked(null);
+      setBusy(false);
+      setError(result.error ?? 'Σφάλμα');
       return;
     }
+    setBusy(false);
     onSeated(result.tableNumber);
   };
 

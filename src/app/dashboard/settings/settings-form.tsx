@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TopBar } from '@/components/ui/topbar';
 import { cn } from '@/lib/utils';
@@ -88,12 +88,35 @@ export function SettingsForm({ restaurant, tableCount, tables, userEmail, userFu
   const [hours, setHours] = useState<DayHours[]>(parseHours(restaurant?.operating_hours));
 
   // Per-table edit rows; sorted by number for stable display.
-  const [tableRows, setTableRows] = useState<TableRow[]>(
-    [...tables].sort((a, b) => a.number - b.number).map(tableToRow)
+  const initialTableRows = useMemo(
+    () => [...tables].sort((a, b) => a.number - b.number).map(tableToRow),
+    [tables],
   );
+  const [tableRows, setTableRows] = useState<TableRow[]>(initialTableRows);
+  // Snapshot of the last persisted state, used for dirty-tracking. Updated on
+  // a successful save so a second click without further edits is a no-op
+  // instead of re-shipping the whole array.
+  const [savedTableRows, setSavedTableRows] = useState<TableRow[]>(initialTableRows);
   const [tablesSaving, setTablesSaving] = useState(false);
   const [tablesSaved, setTablesSaved] = useState(false);
   const [tablesError, setTablesError] = useState<string | null>(null);
+
+  // A row is dirty when any field differs from the last-saved snapshot.
+  // Field-level diff (rather than reference diff) means an edit-then-revert
+  // correctly reports the row as clean, so the user isn't pushed into a
+  // pointless save.
+  const dirtyTableRows = useMemo(() => {
+    const saved = new Map(savedTableRows.map(r => [r.id, r]));
+    return tableRows.filter(r => {
+      const o = saved.get(r.id);
+      if (!o) return true;
+      return o.number !== r.number
+        || o.label !== r.label
+        || o.seats !== r.seats
+        || o.shape !== r.shape
+        || o.zone !== r.zone;
+    });
+  }, [tableRows, savedTableRows]);
 
   // Synchronous re-entry guards. setSaving(true) doesn't apply until React
   // re-renders, so an Enter-key resubmit fired before paint slipped through
@@ -110,15 +133,21 @@ export function SettingsForm({ restaurant, tableCount, tables, userEmail, userFu
 
   const handleSaveTables = async () => {
     if (tablesSavingRef.current) return;
+    if (dirtyTableRows.length === 0) return;
     tablesSavingRef.current = true;
     setTablesSaving(true);
     setTablesError(null);
     try {
-      const result = await updateTables(tableRows);
+      // Only ship the rows the user actually touched. The server still
+      // re-validates whatever it receives, so the boundary stays trustworthy.
+      const result = await updateTables(dirtyTableRows);
       if (result.error) {
         setTablesError(result.error);
         return;
       }
+      // Snapshot what we just persisted so subsequent saves can tell what's
+      // dirty without waiting on router.refresh to re-feed props.
+      setSavedTableRows(tableRows);
       setTablesSaved(true);
       setTimeout(() => setTablesSaved(false), 2500);
       router.refresh();
@@ -374,10 +403,14 @@ export function SettingsForm({ restaurant, tableCount, tables, userEmail, userFu
                         {tablesSaved && <p className="text-[13px] text-[#10B981] font-bold flex items-center gap-1.5">✓ Τα τραπέζια αποθηκεύτηκαν</p>}
                         {tablesError && <p className="text-[13px] text-[#EF4444] font-bold">{tablesError}</p>}
                       </div>
-                      <button onClick={handleSaveTables} disabled={tablesSaving}
+                      <button onClick={handleSaveTables} disabled={tablesSaving || dirtyTableRows.length === 0}
                         className="flex items-center gap-2 px-5 py-2.5 bg-[#F97316] hover:bg-[#EA580C] text-white text-[13px] font-bold rounded-lg transition-colors active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed">
                         <Save size={15} strokeWidth={2.6} />
-                        {tablesSaving ? 'Αποθήκευση…' : 'Αποθήκευση τραπεζιών'}
+                        {tablesSaving
+                          ? 'Αποθήκευση…'
+                          : dirtyTableRows.length === 0
+                            ? 'Καμία αλλαγή'
+                            : `Αποθήκευση τραπεζιών (${dirtyTableRows.length})`}
                       </button>
                     </div>
                   </>
