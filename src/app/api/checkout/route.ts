@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
-import { stripe, STRIPE_PRICES } from '@/lib/stripe';
+import { stripe, getStripePrice } from '@/lib/stripe';
 import { isSameOrigin } from '@/lib/http/same-origin';
 
 const RESTAURANT_COOKIE = 'tf_restaurant_id';
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  const priceId = STRIPE_PRICES[plan];
+  const priceId = getStripePrice(plan);
   if (!priceId) {
     console.error('[checkout] Missing price id for plan', { plan, env: !!process.env.STRIPE_PRO_PRICE_ID });
     return NextResponse.json(

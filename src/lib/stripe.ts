@@ -17,9 +17,13 @@ function requireStripeEnv(name: string): string {
 
 export const stripe = new Stripe(requireStripeEnv('STRIPE_SECRET_KEY'));
 
-export const STRIPE_PRICES: Record<string, string> = {
-  pro: requireStripeEnv('STRIPE_PRO_PRICE_ID'),
-};
+// Read the price IDs lazily so missing envs don't crash module load (and
+// therefore `next build` page-data collection). Each consumer already
+// handles the empty-string case with a 500 + clear error message.
+export function getStripePrice(plan: string): string {
+  if (plan === 'pro') return process.env.STRIPE_PRO_PRICE_ID ?? '';
+  return '';
+}
 
 export type SubscriptionStatus =
   | 'active' | 'trialing' | 'canceling' | 'past_due' | 'cancelled'
