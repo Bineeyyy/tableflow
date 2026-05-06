@@ -9,12 +9,16 @@ export default async function SettingsPage() {
   const restaurant = await getMyRestaurant();
   const tables = restaurant ? await getTablesForRestaurant(restaurant.id) : [];
 
+  const meta = user?.user_metadata as { full_name?: string; name?: string } | undefined;
+  const userFullName = meta?.full_name || meta?.name || '';
+
   return (
     <SettingsForm
       restaurant={restaurant}
       tableCount={tables.length}
       tables={tables}
       userEmail={user?.email ?? ''}
+      userFullName={userFullName}
     />
   );
 }

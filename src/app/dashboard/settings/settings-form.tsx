@@ -9,6 +9,7 @@ import {
   Save, Eye, EyeOff, ToggleLeft, ToggleRight, MapPin, Phone, Mail, Utensils,
 } from 'lucide-react';
 import { saveRestaurantSettings, updateTables, type TableEdit } from '@/app/actions/settings';
+import { updateProfile, changePassword } from '@/app/actions/account';
 import { TABLE_ZONES } from '@/types';
 import type { Table } from '@/types';
 import type { Tables } from '@/types/database.types';
@@ -72,6 +73,7 @@ type Props = {
   tableCount: number;
   tables: Table[];
   userEmail: string;
+  userFullName: string;
 };
 
 type TableRow = TableEdit;
@@ -87,7 +89,7 @@ function tableToRow(t: Table): TableRow {
   };
 }
 
-export function SettingsForm({ restaurant, tableCount, tables, userEmail }: Props) {
+export function SettingsForm({ restaurant, tableCount, tables, userEmail, userFullName }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('restaurant');
   const [saving, setSaving] = useState(false);
@@ -134,10 +136,46 @@ export function SettingsForm({ restaurant, tableCount, tables, userEmail }: Prop
     dailySummary: true, marketingEmails: false,
   });
 
-  const [account, setAccount] = useState({
-    firstName: '', lastName: '',
-    email: userEmail, currentPassword: '', newPassword: '',
-  });
+  const [profileName, setProfileName] = useState(userFullName);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+
+  const [pwd, setPwd] = useState({ current: '', next: '' });
+  const [pwdSaving, setPwdSaving] = useState(false);
+  const [pwdSaved, setPwdSaved] = useState(false);
+  const [pwdError, setPwdError] = useState<string | null>(null);
+
+  const handleSaveProfile = async () => {
+    setProfileSaving(true);
+    setProfileError(null);
+    const result = await updateProfile({ fullName: profileName });
+    setProfileSaving(false);
+    if (result.error) {
+      setProfileError(result.error);
+      return;
+    }
+    setProfileSaved(true);
+    setTimeout(() => setProfileSaved(false), 2500);
+    router.refresh();
+  };
+
+  const handleChangePassword = async () => {
+    setPwdSaving(true);
+    setPwdError(null);
+    const result = await changePassword({
+      currentPassword: pwd.current,
+      newPassword: pwd.next,
+    });
+    setPwdSaving(false);
+    if (result.error) {
+      setPwdError(result.error);
+      return;
+    }
+    setPwd({ current: '', next: '' });
+    setPwdSaved(true);
+    setTimeout(() => setPwdSaved(false), 2500);
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -380,45 +418,95 @@ export function SettingsForm({ restaurant, tableCount, tables, userEmail }: Prop
             {tab === 'account' && (
               <>
                 <h3 className="font-bold text-[#0A0A0A] tracking-tight flex items-center gap-2"><User size={17} className="text-[#F97316]" />Στοιχεία Λογαριασμού</h3>
-                <div className="grid grid-cols-2 gap-4">
+
+                {/* Profile name — saved to auth user_metadata.full_name */}
+                <div className="space-y-3">
                   <div>
-                    <label className="block text-[12px] font-semibold text-[#0A0A0A] mb-1.5 uppercase tracking-wider">Όνομα</label>
-                    <input type="text" value={account.firstName} onChange={e => setAccount(a => ({ ...a, firstName: e.target.value }))}
-                      className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15" />
+                    <label className="block text-[12px] font-semibold text-[#0A0A0A] mb-1.5 uppercase tracking-wider">Ονοματεπώνυμο</label>
+                    <input
+                      type="text"
+                      value={profileName}
+                      onChange={e => setProfileName(e.target.value)}
+                      placeholder="π.χ. Αλέξης Παπαδόπουλος"
+                      className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15"
+                    />
                   </div>
-                  <div>
-                    <label className="block text-[12px] font-semibold text-[#0A0A0A] mb-1.5 uppercase tracking-wider">Επώνυμο</label>
-                    <input type="text" value={account.lastName} onChange={e => setAccount(a => ({ ...a, lastName: e.target.value }))}
-                      className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15" />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-[12px] font-semibold text-[#0A0A0A] mb-1.5 uppercase tracking-wider">Email</label>
-                    <input type="email" value={account.email} onChange={e => setAccount(a => ({ ...a, email: e.target.value }))}
-                      className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15" />
-                  </div>
-                  <div className="col-span-2 pt-2 border-t border-[#E5E7EB]">
-                    <p className="text-[13px] font-bold text-[#0A0A0A] tracking-tight mb-3">Αλλαγή Κωδικού</p>
-                    <div className="space-y-3">
-                      <div className="relative">
-                        <input type={showPassword ? 'text' : 'password'} placeholder="Τρέχων κωδικός"
-                          value={account.currentPassword} onChange={e => setAccount(a => ({ ...a, currentPassword: e.target.value }))}
-                          className="w-full px-4 py-2.5 pr-10 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15" />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7280] hover:text-[#0A0A0A] transition-colors">
-                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
-                      <input type="password" placeholder="Νέος κωδικός"
-                        value={account.newPassword} onChange={e => setAccount(a => ({ ...a, newPassword: e.target.value }))}
-                        className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15" />
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex-1 min-h-[20px]">
+                      {profileSaved && <p className="text-[12px] text-[#10B981] font-bold">✓ Αποθηκεύτηκε</p>}
+                      {profileError && <p className="text-[12px] text-[#EF4444] font-bold">{profileError}</p>}
                     </div>
+                    <button
+                      onClick={handleSaveProfile}
+                      disabled={profileSaving || !profileName.trim() || profileName.trim() === userFullName}
+                      className="px-4 py-2 bg-[#0A0A0A] hover:bg-[#262626] disabled:opacity-40 disabled:cursor-not-allowed text-white text-[12px] font-bold rounded-lg transition-colors"
+                    >
+                      {profileSaving ? 'Αποθήκευση…' : 'Αποθήκευση ονόματος'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Email — read-only; changing it requires email re-verification */}
+                <div className="pt-4 border-t border-[#E5E7EB]">
+                  <label className="block text-[12px] font-semibold text-[#0A0A0A] mb-1.5 uppercase tracking-wider">Email</label>
+                  <input
+                    type="email"
+                    value={userEmail}
+                    readOnly
+                    className="w-full px-4 py-2.5 border border-[#E5E7EB] bg-[#F8F8F8] rounded-lg text-[13px] text-[#6B7280] cursor-not-allowed"
+                  />
+                  <p className="text-[11px] text-[#9CA3AF] mt-1.5">Η αλλαγή email δεν είναι ακόμη διαθέσιμη.</p>
+                </div>
+
+                {/* Password change — verifies current password before applying */}
+                <div className="pt-4 border-t border-[#E5E7EB]">
+                  <p className="text-[13px] font-bold text-[#0A0A0A] tracking-tight mb-3">Αλλαγή Κωδικού</p>
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Τρέχων κωδικός"
+                        value={pwd.current}
+                        onChange={e => setPwd(p => ({ ...p, current: e.target.value }))}
+                        className="w-full px-4 py-2.5 pr-10 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7280] hover:text-[#0A0A0A] transition-colors"
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    <input
+                      type="password"
+                      placeholder="Νέος κωδικός (τουλάχιστον 6 χαρακτήρες)"
+                      value={pwd.next}
+                      onChange={e => setPwd(p => ({ ...p, next: e.target.value }))}
+                      className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-3 mt-3">
+                    <div className="flex-1 min-h-[20px]">
+                      {pwdSaved && <p className="text-[12px] text-[#10B981] font-bold">✓ Ο κωδικός άλλαξε</p>}
+                      {pwdError && <p className="text-[12px] text-[#EF4444] font-bold">{pwdError}</p>}
+                    </div>
+                    <button
+                      onClick={handleChangePassword}
+                      disabled={pwdSaving || !pwd.current || pwd.next.length < 6}
+                      className="px-4 py-2 bg-[#0A0A0A] hover:bg-[#262626] disabled:opacity-40 disabled:cursor-not-allowed text-white text-[12px] font-bold rounded-lg transition-colors"
+                    >
+                      {pwdSaving ? 'Ενημέρωση…' : 'Αλλαγή κωδικού'}
+                    </button>
                   </div>
                 </div>
               </>
             )}
 
-            {/* Save button — hidden on tables tab which has its own save bar */}
-            {tab !== 'tables' && (
+            {/* Save button — tabs that own their persistence ("tables", "account")
+                hide the global bar so the user doesn't see "saved" notices that
+                don't reflect what they actually edited. */}
+            {tab !== 'tables' && tab !== 'account' && (
             <div className="flex items-center justify-between pt-4 border-t border-[#E5E7EB]">
               <div>
                 {saved && <p className="text-[13px] text-[#10B981] font-bold flex items-center gap-1.5">✓ Οι αλλαγές αποθηκεύτηκαν</p>}
