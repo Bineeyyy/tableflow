@@ -61,16 +61,6 @@ export const TableNode = memo(function TableNode({ table, isSelected, onClick }:
             </span>
           </div>
         </div>
-
-        {table.status === 'occupied' && (
-          <span
-            className="absolute inset-0 animate-ping opacity-30 pointer-events-none"
-            style={{
-              background: '#EF4444',
-              borderRadius: shapeClass === 'rounded-full' ? '9999px' : '0.5rem',
-            }}
-          />
-        )}
       </div>
 
       {/* Hover tooltip */}
