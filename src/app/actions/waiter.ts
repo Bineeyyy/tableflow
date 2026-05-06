@@ -1,8 +1,13 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
+
+// /dashboard and /dashboard/waiter both subscribe to restaurant_tables and
+// reservations via realtime, so server revalidation after a tap rebuilds
+// HTML the client never re-fetches. Realtime is the source of truth for
+// floor-plan freshness; the revalidatePath('/dashboard*') calls were
+// wasted server work and have been removed.
 
 const RESTAURANT_COOKIE = 'tf_restaurant_id'
 
@@ -77,8 +82,6 @@ export async function setTableOccupancy(tableId: string, params:
     }
   }
 
-  revalidatePath('/dashboard/waiter')
-  revalidatePath('/dashboard')
   return { success: true }
 }
 
@@ -141,8 +144,6 @@ export async function createWalkin(guests: number) {
       return { error: 'Σφάλμα κατά την ενημέρωση τραπεζιού.' }
     }
     if (claimed && claimed.length > 0) {
-      revalidatePath('/dashboard/waiter')
-      revalidatePath('/dashboard')
       return { success: true, tableNumber: candidate.number }
     }
     // Lost the race on this candidate — loop to pick the next-best fit.
@@ -225,7 +226,5 @@ export async function seatReservation(reservationId: string, tableId?: string) {
     return { error: 'Σφάλμα κατά την ενημέρωση τραπεζιού.' }
   }
 
-  revalidatePath('/dashboard/waiter')
-  revalidatePath('/dashboard')
   return { success: true }
 }

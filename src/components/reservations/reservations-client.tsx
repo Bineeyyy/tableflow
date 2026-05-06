@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { Reservation, ReservationStatus, Table } from '@/types';
 import { upsertReservation, deleteReservation, updateReservationStatus } from '@/app/actions/reservations';
@@ -21,10 +21,13 @@ const STATUS_CONFIG: Record<ReservationStatus, { label: string; color: string; i
 
 type DateFilter = 'today' | 'tomorrow' | 'all';
 
-const emptyForm = {
+// Built per-click rather than at module load so the date defaults to *today*
+// even when the tab has been left open across midnight. A const evaluated at
+// import time would freeze on yesterday until the SPA reloaded.
+const makeEmptyForm = () => ({
   name: '', phone: '', date: new Date().toISOString().split('T')[0],
   time: '20:00', guests: '2', table_id: '', status: 'confirmed' as ReservationStatus, notes: '',
-};
+});
 
 interface Props {
   initialReservations: Reservation[];
@@ -37,13 +40,21 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
   const [filter, setFilter] = useState<DateFilter>('today');
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<Reservation | null>(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(makeEmptyForm);
   const [saving, setSaving] = useState(false);
+  // setSaving(true) doesn't take effect synchronously, so disabled={saving}
+  // can't gate a fast Enter-key resubmit before React paints. The ref does —
+  // it mutates immediately and the re-entry check sees the truthy value.
+  const savingRef = useRef(false);
   const [error, setError] = useState('');
   // Status menu was previously hover-only (`group-hover:block`), which never
   // fires on touch — iOS users couldn't change reservation status from this
   // list at all. Track an explicit open id so the menu works on tap.
   const [openStatusId, setOpenStatusId] = useState<string | null>(null);
+  // Cancellation is destructive (table frees up, slot reopens for booking),
+  // and the status menu is a single tap with no undo. Gate it behind a
+  // small confirmation modal showing whose reservation is about to drop.
+  const [cancelConfirm, setCancelConfirm] = useState<{ id: string; name: string } | null>(null);
 
   // Close the status menu on Escape so keyboard users can dismiss without
   // chasing the backdrop.
@@ -75,7 +86,7 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
 
   const openAdd = () => {
     setEditItem(null);
-    setForm(emptyForm);
+    setForm(makeEmptyForm());
     setError('');
     setShowModal(true);
   };
@@ -91,21 +102,27 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
   };
 
   const save = async () => {
+    if (savingRef.current) return;
     if (!form.name || !form.date || !form.time || !form.guests) return;
+    savingRef.current = true;
     setSaving(true);
     setError('');
-    const res = await upsertReservation(
-      { ...form, guests: parseInt(form.guests), table_id: form.table_id || undefined },
-      editItem?.id,
-    );
-    setSaving(false);
-    if ('error' in res) { setError(res.error); return; }
-    setReservations(prev =>
-      editItem
-        ? prev.map(r => r.id === editItem.id ? res.reservation : r)
-        : [res.reservation, ...prev],
-    );
-    setShowModal(false);
+    try {
+      const res = await upsertReservation(
+        { ...form, guests: parseInt(form.guests), table_id: form.table_id || undefined },
+        editItem?.id,
+      );
+      if ('error' in res) { setError(res.error); return; }
+      setReservations(prev =>
+        editItem
+          ? prev.map(r => r.id === editItem.id ? res.reservation : r)
+          : [res.reservation, ...prev],
+      );
+      setShowModal(false);
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
   };
 
   // Optimistic delete: snapshot first so we can roll back if the server rejects
@@ -262,7 +279,14 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
                               <button
                                 key={key}
                                 role="menuitem"
-                                onClick={() => { changeStatus(r.id, key); setOpenStatusId(null); }}
+                                onClick={() => {
+                                  setOpenStatusId(null);
+                                  if (key === 'cancelled' && r.status !== 'cancelled') {
+                                    setCancelConfirm({ id: r.id, name: r.name });
+                                  } else {
+                                    changeStatus(r.id, key);
+                                  }
+                                }}
                                 className={cn('w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-[#F8F8F8] transition-colors', r.status === key && 'bg-[#F8F8F8] font-bold')}
                               >
                                 {cfg.icon}<span>{cfg.label}</span>
@@ -366,6 +390,40 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
                 ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 : editItem ? 'Αποθήκευση' : 'Δημιουργία Κράτησης'
               }
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={cancelConfirm !== null}
+        onClose={() => setCancelConfirm(null)}
+        title="Ακύρωση κράτησης"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-[13px] text-[#0A0A0A] leading-relaxed">
+            Σίγουρα θέλετε να ακυρώσετε την κράτηση
+            {cancelConfirm && <strong className="font-bold"> {cancelConfirm.name}</strong>};
+          </p>
+          <p className="text-[12px] text-[#6B7280]">
+            Το τραπέζι θα απελευθερωθεί για άλλους πελάτες.
+          </p>
+          <div className="flex gap-3 pt-2 border-t border-[#E5E7EB]">
+            <button
+              onClick={() => setCancelConfirm(null)}
+              className="flex-1 px-4 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] font-semibold text-[#0A0A0A] hover:bg-[#F8F8F8] transition-colors"
+            >
+              Όχι, διατήρηση
+            </button>
+            <button
+              onClick={() => {
+                if (cancelConfirm) changeStatus(cancelConfirm.id, 'cancelled');
+                setCancelConfirm(null);
+              }}
+              className="flex-1 px-4 py-2.5 bg-[#EF4444] hover:bg-[#DC2626] text-white text-[13px] font-bold rounded-lg transition-colors"
+            >
+              Ναι, ακύρωση
             </button>
           </div>
         </div>
