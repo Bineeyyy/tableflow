@@ -187,15 +187,6 @@ export default async function BillingPage({
         .order('created_at', { ascending: true })
     : { data: null };
 
-  // Minimal page-load breadcrumb — no IDs, no stripe identifiers, no emails.
-  // The debug pane below still surfaces the full snapshot to whoever opens it
-  // with ?debug=1, which is restricted to the signed-in owner anyway.
-  console.log('[billing] page load', JSON.stringify({
-    has_restaurant: !!restaurant,
-    plan: restaurant?.plan ?? null,
-    subscription_status: restaurant?.subscription_status ?? null,
-  }));
-
   const rawPlan = restaurant?.plan ?? 'free';
   const subStatus = restaurant?.subscription_status ?? null;
   // 'canceling' = user toggled cancel-at-period-end in the portal but still

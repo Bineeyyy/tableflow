@@ -49,39 +49,11 @@ export async function updateTableStatus(
   if (error) throw error;
 }
 
-// ── Orders ─────────────────────────────────────────────────────────────────
-
-export async function getOpenOrders(restaurantId: string) {
-  const sb = createClient();
-  const { data, error } = await sb
-    .from('orders')
-    .select('*, restaurant_tables(number, label, seats)')
-    .eq('restaurant_id', restaurantId)
-    .eq('status', 'open')
-    .order('opened_at');
-  if (error) throw error;
-  return data;
-}
-
-export async function createOrder(input: TablesInsert<'orders'>) {
-  const sb = createClient();
-  const { data, error } = await sb
-    .from('orders')
-    .insert(input)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
-}
-
-export async function closeOrder(orderId: string) {
-  const sb = createClient();
-  const { error } = await sb
-    .from('orders')
-    .update({ status: 'closed', closed_at: new Date().toISOString() })
-    .eq('id', orderId);
-  if (error) throw error;
-}
+// Orders helpers were deleted along with the orders feature in 58a9ae2.
+// The `orders` table may still exist server-side, but the UI no longer
+// reads or writes it. Re-add helpers from a fresh design rather than
+// reviving the old ones — they assumed a status enum and join shape that
+// the rest of the app no longer uses.
 
 // ── Reservations ───────────────────────────────────────────────────────────
 

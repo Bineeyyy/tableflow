@@ -45,17 +45,18 @@ async function pinnedRestaurantId(): Promise<string | null> {
 }
 
 function mapReservation(r: Tables<'reservations'>): Reservation {
+  const time = typeof r.reserved_time === 'string' ? r.reserved_time.slice(0, 5) : ''
   return {
     id: r.id,
-    name: r.customer_name,
+    name: r.customer_name ?? '',
     phone: r.customer_phone ?? '',
-    date: r.reserved_date,
-    time: r.reserved_time.slice(0, 5),
-    guests: r.party_size,
+    date: r.reserved_date ?? '',
+    time,
+    guests: r.party_size ?? 0,
     table_id: r.table_id ?? undefined,
     status: r.status,
     notes: r.notes ?? '',
-    created_at: r.created_at,
+    created_at: r.created_at ?? '',
   }
 }
 

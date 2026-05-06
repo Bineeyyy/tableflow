@@ -27,19 +27,24 @@ function mapTable(t: DbTable): Table {
   };
 }
 
+// Defensive against schema drift or untyped rows reaching this mapper. The
+// reservations columns are NOT NULL in the schema, but if that ever changes
+// — or if a realtime/admin path bypasses the typed insert — `.slice` on a
+// null reserved_time would throw and crash the page. Coerce instead.
 function mapReservation(r: DbReservation): AppReservation {
+  const time = typeof r.reserved_time === 'string' ? r.reserved_time.slice(0, 5) : '';
   return {
     id: r.id,
-    name: r.customer_name,
+    name: r.customer_name ?? '',
     phone: r.customer_phone ?? '',
-    date: r.reserved_date,
+    date: r.reserved_date ?? '',
     // DB stores "HH:MM:SS", components expect "HH:MM"
-    time: r.reserved_time.slice(0, 5),
-    guests: r.party_size,
+    time,
+    guests: r.party_size ?? 0,
     table_id: r.table_id ?? undefined,
     status: r.status,
     notes: r.notes ?? '',
-    created_at: r.created_at,
+    created_at: r.created_at ?? '',
   };
 }
 
