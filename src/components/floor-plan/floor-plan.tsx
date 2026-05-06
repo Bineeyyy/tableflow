@@ -1,17 +1,39 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Table, TableStatus, Reservation } from '@/types';
+import type { Tables } from '@/types/database.types';
 import { TableNode } from './table-node';
 import { TableDetailPanel } from './table-detail-panel';
 import { OccupyModal } from '@/components/ui/occupy-modal';
 import { setTableOccupancy } from '@/app/actions/waiter';
+import { createClient } from '@/lib/supabase/client';
 import { LayoutGrid, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+
+type DbTable = Tables<'restaurant_tables'>;
+type DbReservation = Tables<'reservations'>;
 
 const LEGEND = [
   { status: 'available' as TableStatus, label: 'Ελεύθερο',     color: 'bg-[#10B981]' },
   { status: 'occupied'  as TableStatus, label: 'Κατειλημμένο', color: 'bg-[#EF4444]' },
 ];
+
+function mapTable(t: DbTable): Table {
+  return {
+    id: t.id, number: t.number, seats: t.seats, current_guests: t.current_guests,
+    status: t.status, x: t.pos_x, y: t.pos_y, shape: t.shape,
+    label: t.label ?? undefined, zone: t.zone ?? undefined,
+  };
+}
+
+function mapReservation(r: DbReservation): Reservation {
+  return {
+    id: r.id, name: r.customer_name, phone: r.customer_phone ?? '',
+    date: r.reserved_date, time: r.reserved_time.slice(0, 5),
+    guests: r.party_size, table_id: r.table_id ?? undefined,
+    status: r.status, notes: r.notes ?? '', created_at: r.created_at,
+  };
+}
 
 interface FloorPlanProps {
   initialTables: Table[];
@@ -26,11 +48,13 @@ function halfSize(shape: Table['shape']): readonly [number, number] {
   return [40, 40]; // square
 }
 
-export function FloorPlan({ initialTables, todayReservations }: FloorPlanProps) {
+export function FloorPlan({ initialTables, restaurantId, todayReservations }: FloorPlanProps) {
   const [tables, setTables] = useState<Table[]>(initialTables);
+  const [reservations, setReservations] = useState<Reservation[]>(todayReservations);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [zoom, setZoom] = useState(1);
   const [occupyTarget, setOccupyTarget] = useState<Table | null>(null);
+  const [live, setLive] = useState(false);
 
   const handleTableClick = useCallback((table: Table) => {
     setSelectedTable(prev => prev?.id === table.id ? null : table);
@@ -40,6 +64,62 @@ export function FloorPlan({ initialTables, todayReservations }: FloorPlanProps) 
     setTables(prev => prev.map(t => t.id === tableId ? { ...t, ...patch } : t));
     setSelectedTable(prev => prev?.id === tableId ? { ...prev, ...patch } : prev);
   }, []);
+
+  // Real-time: mirror the waiter-app subscription so taps from a phone
+  // propagate instantly to this canvas. RLS scopes the publication
+  // server-side, so no other restaurants' rows reach this client.
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`floor-plan:${restaurantId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'restaurant_tables', filter: `restaurant_id=eq.${restaurantId}` },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            const id = (payload.old as { id?: string }).id;
+            if (!id) return;
+            setTables(prev => prev.filter(t => t.id !== id));
+            setSelectedTable(prev => prev?.id === id ? null : prev);
+            return;
+          }
+          const row = mapTable(payload.new as DbTable);
+          setTables(prev => {
+            const idx = prev.findIndex(t => t.id === row.id);
+            if (idx === -1) return [...prev, row].sort((a, b) => a.number - b.number);
+            const next = prev.slice(); next[idx] = row; return next;
+          });
+          setSelectedTable(prev => prev?.id === row.id ? row : prev);
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'reservations', filter: `restaurant_id=eq.${restaurantId}` },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            const id = (payload.old as { id?: string }).id;
+            if (id) setReservations(prev => prev.filter(r => r.id !== id));
+            return;
+          }
+          const row = mapReservation(payload.new as DbReservation);
+          // Floor plan badges only reflect today's reservations. If a row was
+          // edited to a different date, drop it from local state.
+          const today = new Date().toISOString().split('T')[0];
+          if (row.date !== today) {
+            setReservations(prev => prev.filter(r => r.id !== row.id));
+            return;
+          }
+          setReservations(prev => {
+            const idx = prev.findIndex(r => r.id === row.id);
+            if (idx === -1) return [...prev, row].sort((a, b) => a.time.localeCompare(b.time));
+            const next = prev.slice(); next[idx] = row; return next;
+          });
+        },
+      )
+      .subscribe(status => setLive(status === 'SUBSCRIBED'));
+
+    return () => { supabase.removeChannel(channel); };
+  }, [restaurantId]);
 
   const handleFree = useCallback(async (tableId: string) => {
     applyLocal(tableId, { status: 'available', current_guests: 0 });
@@ -72,13 +152,13 @@ export function FloorPlan({ initialTables, todayReservations }: FloorPlanProps) 
 
   const reservationByTable = useMemo(() => {
     const map = new Map<string, Reservation>();
-    for (const r of todayReservations) {
+    for (const r of reservations) {
       if (r.table_id && r.status !== 'cancelled' && r.status !== 'completed') {
         map.set(r.table_id, r);
       }
     }
     return map;
-  }, [todayReservations]);
+  }, [reservations]);
 
   // Auto-fit canvas: bounding box of all tables → zone → labels around it
   const layout = useMemo(() => {
@@ -145,6 +225,15 @@ export function FloorPlan({ initialTables, todayReservations }: FloorPlanProps) 
             <LayoutGrid size={15} className="text-[#6B7280]" />
             <span className="text-[13px] font-semibold text-[#0A0A0A] tracking-tight">Κάτοψη Εστιατορίου</span>
             <span className="text-[12px] text-[#6B7280]">· {tables.length} τραπέζια</span>
+            <span
+              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide ${
+                live ? 'bg-emerald-500/10 text-emerald-600' : 'bg-[#F8F8F8] text-[#6B7280]'
+              }`}
+              title={live ? 'Συνδεδεμένο σε πραγματικό χρόνο' : 'Σύνδεση...'}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${live ? 'bg-emerald-500 animate-pulse' : 'bg-[#9CA3AF]'}`} />
+              {live ? 'Ζωντανό' : 'Σύνδεση...'}
+            </span>
           </div>
           <div className="flex items-center gap-1">
             <button onClick={resetZoom} className="p-1.5 rounded-md hover:bg-[#F8F8F8] text-[#6B7280] hover:text-[#0A0A0A]" title="Επαναφορά ζουμ">
