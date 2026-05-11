@@ -262,10 +262,12 @@ export function FloorPlan({ initialTables, restaurantId, todayReservations }: Fl
           </div>
         </div>
 
-        {/* Canvas — fixed 860x580 dark canvas with full-size dashed dining zone */}
-        <div className="flex-1 rounded-lg border border-white/10 overflow-auto max-w-full" style={{ background: '#0F0F0F' }}>
+        {/* Canvas — fixed 860x580 dark canvas with full-size dashed dining zone.
+            The inner sized area is horizontally centered in the flex-1 wrapper
+            so the αίθουσα box sits in the middle of any wider viewport. */}
+        <div className="flex-1 rounded-lg border border-white/10 overflow-auto max-w-full flex justify-center" style={{ background: '#0F0F0F' }}>
           <div
-            className="relative min-h-full"
+            className="relative min-h-full flex-shrink-0"
             style={{
               width: `${860 * zoom}px`,
               height: `${580 * zoom}px`,
