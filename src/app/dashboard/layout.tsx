@@ -22,7 +22,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <MobileNavProvider>
-      <div className="flex h-screen w-screen max-w-[100vw] overflow-hidden pb-16 md:pb-0" style={{ background: '#FAF6EE' }}>
+      <div className="flex h-screen w-screen max-w-[100vw] overflow-hidden pb-16 md:pb-0" style={{ background: '#F5EDDC' }}>
         <Sidebar
           reservationsBadge={reservationsBadge}
           restaurantName={restaurant?.name}
