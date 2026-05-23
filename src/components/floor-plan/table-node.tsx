@@ -7,9 +7,27 @@ import { Users } from 'lucide-react';
 import { SeatedDuration } from './seated-duration';
 
 // On dark canvas: dark fill + bright border + colored glow so tables pop.
-const STATUS_COLORS: Record<TableStatus, { border: string; glow: string; accent: string }> = {
-  available: { border: '#10B981', glow: 'rgba(16,185,129,0.45)', accent: '#10B981' },
-  occupied:  { border: '#EF4444', glow: 'rgba(239,68,68,0.5)',   accent: '#EF4444' },
+const STATUS_COLORS: Record<TableStatus, {
+  border: string;
+  glow: string;
+  accent: string;
+  chipBg: string;
+  chipText: string;
+}> = {
+  available: {
+    border: '#10B981',
+    glow: 'rgba(16,185,129,0.45)',
+    accent: '#10B981',
+    chipBg: 'rgba(16,185,129,0.18)',
+    chipText: '#34D399',
+  },
+  occupied: {
+    border: '#EF4444',
+    glow: 'rgba(239,68,68,0.5)',
+    accent: '#EF4444',
+    chipBg: 'rgba(239,68,68,0.18)',
+    chipText: '#F87171',
+  },
 };
 
 interface TableNodeProps {
@@ -62,17 +80,41 @@ export const TableNode = memo(function TableNode({ table, isSelected, onClick }:
             </span>
           </div>
         </div>
-        {/* Duration badge — pinned just below the table, only shown when
+        {/* Always-visible status chip — sits directly below the table so a
+            top-row table doesn't lose its label to a clipped hover tooltip.
+            Pinned at top-full + small mt offset so it scales with the table
+            and never overlaps the table body. Behind it (further below) we
+            stack the seated-duration pill when the row is occupied. */}
+        <div
+          className="absolute left-1/2 -translate-x-1/2 top-full mt-1.5 pointer-events-none"
+          style={{ whiteSpace: 'nowrap' }}
+        >
+          <span
+            className="inline-block text-[9px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5"
+            style={{
+              background: colors.chipBg,
+              color: colors.chipText,
+              border: `1px solid ${colors.border}`,
+            }}
+          >
+            {getStatusLabel(table.status)}
+          </span>
+        </div>
+
+        {/* Duration badge — pinned below the status chip, only shown when
             the row carries a seated_at timestamp. Backfilled NULLs (for
             tables occupied before this column existed) silently skip. */}
         {!free && table.seated_at && (
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 pointer-events-none">
+          <div className="absolute left-1/2 -translate-x-1/2 top-full mt-7 pointer-events-none">
             <SeatedDuration seatedAt={table.seated_at} />
           </div>
         )}
       </div>
 
-      {/* Hover tooltip */}
+      {/* Hover tooltip — extra detail (table number + guest count) without the
+          status text, which is already pinned to the table via the chip
+          above. Stays in the same `bottom-full` slot so it can still get
+          clipped at the canvas top edge, but that's no longer load-bearing. */}
       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col items-center z-50 pointer-events-none">
         <div className="bg-white text-[#0A0A0A] text-[11px] rounded-md px-3 py-2 whitespace-nowrap shadow-pop border border-[#E5E7EB]">
           <div className="font-bold tracking-tight">Τραπέζι {table.number}</div>
