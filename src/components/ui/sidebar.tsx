@@ -99,10 +99,21 @@ export function Sidebar({
         </button>
       </div>
 
-      {/* Restaurant selector — drawer + desktop only */}
+      {/* Restaurant selector — drawer + desktop only.
+          Clicking jumps to /dashboard/settings where the name, address, hours
+          and table grid can be edited. Single-restaurant accounts don't need a
+          switcher dropdown yet; when multi-restaurant lands this can grow into
+          a popover. */}
       {restaurantName && (
         <div className="px-3 py-3 border-b border-white/5 md:hidden lg:block">
-          <button className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors group">
+          <Link
+            href="/dashboard/settings"
+            prefetch
+            onClick={close}
+            title="Ρυθμίσεις εστιατορίου"
+            aria-label={`Ρυθμίσεις για ${restaurantName}`}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors group"
+          >
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-7 h-7 rounded-md bg-white/5 flex items-center justify-center flex-shrink-0">
                 <span className="text-white text-xs font-bold">{restaurantInitial}</span>
@@ -110,7 +121,7 @@ export function Sidebar({
               <span className="text-white/90 text-[13px] font-medium truncate">{restaurantName}</span>
             </div>
             <ChevronRight size={14} className="text-white/30 group-hover:text-white/60 transition-colors flex-shrink-0" />
-          </button>
+          </Link>
         </div>
       )}
 
