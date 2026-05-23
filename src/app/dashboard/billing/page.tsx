@@ -1,116 +1,34 @@
 import { TopBar } from '@/components/ui/topbar';
-import { SubscribeButton } from '@/components/billing/subscribe-button';
-import { PortalButton } from '@/components/billing/portal-button';
 import { getMyRestaurant } from '@/lib/supabase/server-queries';
 import { createClient } from '@/lib/supabase/server';
-import { stripe } from '@/lib/stripe';
 import { cookies } from 'next/headers';
 import {
-  Check, Zap,
-  CreditCard, Shield, AlertTriangle, CheckCircle2, Clock,
+  Check, Zap, Phone, Mail, Sparkles,
+  CheckCircle2, Clock,
 } from 'lucide-react';
 
-// Read the live Pro price from Stripe so the displayed amount always matches
-// what users will be charged at checkout. The env-var fallback is the
-// last-resort copy for dev and for the brief window between a Stripe price
-// change and the env vars being updated.
-async function getProPriceLabel(): Promise<{ amount: string; interval: string }> {
-  const FALLBACK = {
-    amount: process.env.PRO_PRICE_FALLBACK_AMOUNT || '49,99€',
-    interval: process.env.PRO_PRICE_FALLBACK_INTERVAL || '/μήνα',
-  };
-  const priceId = process.env.STRIPE_PRO_PRICE_ID;
-  if (!priceId || !process.env.STRIPE_SECRET_KEY) return FALLBACK;
-  try {
-    const price = await stripe.prices.retrieve(priceId);
-    if (!price.unit_amount || !price.currency) return FALLBACK;
-    const amount = (price.unit_amount / 100).toLocaleString('el-GR', {
-      style: 'currency',
-      currency: price.currency.toUpperCase(),
-      maximumFractionDigits: price.unit_amount % 100 === 0 ? 0 : 2,
-    });
-    const interval =
-      price.recurring?.interval === 'year' ? '/έτος' :
-      price.recurring?.interval === 'week' ? '/εβδομάδα' :
-      '/μήνα';
-    return { amount, interval };
-  } catch (err) {
-    console.error('[billing] failed to read Stripe price', err);
-    return FALLBACK;
-  }
-}
+const CONTACT_PHONE = '6983151294';
+const CONTACT_PHONE_DISPLAY = '698 315 1294';
+const CONTACT_EMAIL = 'TableFlow2026@gmail.com';
 
 const PRO_FEATURES = [
   'Απεριόριστα τραπέζια & κρατήσεις',
   'Διαχείριση μενού',
   'Αναφορές & στατιστικά',
   'Live ενημερώσεις (Realtime)',
-  'Ασφαλείς πληρωμές μέσω Stripe',
+  'Δωρεάν υποστήριξη',
   'Ακύρωση οποτεδήποτε',
 ];
 
-function StatusBanner({
-  status,
-  hasCustomer,
-  isActiveSub,
+function TrialBanner({
   trialDaysLeft,
-  trialExpired,
+  isActiveSub,
+  status,
 }: {
-  status: string | null;
-  hasCustomer: boolean;
-  isActiveSub: boolean;
   trialDaysLeft: number | null;
-  trialExpired: boolean;
+  isActiveSub: boolean;
+  status: string | null;
 }) {
-  if (status === 'past_due') {
-    return (
-      <div className="flex items-start gap-3 px-5 py-4 bg-white border border-[#EF4444]/30 rounded-lg shadow-card">
-        <AlertTriangle size={20} className="text-[#EF4444] mt-0.5 flex-shrink-0" />
-        <div className="flex-1">
-          <p className="font-bold text-[#0A0A0A] tracking-tight">Η πληρωμή απέτυχε</p>
-          <p className="text-[13px] text-[#6B7280] mt-0.5">
-            Η τελευταία χρέωση δεν πραγματοποιήθηκε. Ενημερώστε την κάρτα σας για να διατηρήσετε πρόσβαση.
-          </p>
-        </div>
-        {hasCustomer && (
-          <PortalButton className="text-[#EF4444] hover:text-[#B91C1C] whitespace-nowrap" />
-        )}
-      </div>
-    );
-  }
-
-  if (status === 'cancelled') {
-    return (
-      <div className="flex items-start gap-3 px-5 py-4 bg-white border border-[#F97316]/30 rounded-lg shadow-card">
-        <AlertTriangle size={20} className="text-[#F97316] mt-0.5 flex-shrink-0" />
-        <div className="flex-1">
-          <p className="font-bold text-[#0A0A0A] tracking-tight">Η συνδρομή σας έληξε</p>
-          <p className="text-[13px] text-[#6B7280] mt-0.5">
-            Αναβαθμίστε ξανά σε Pro για να ανακτήσετε πρόσβαση στο TableFlow.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (status === 'canceling') {
-    return (
-      <div className="flex items-start gap-3 px-5 py-4 bg-white border border-[#F97316]/30 rounded-lg shadow-card">
-        <AlertTriangle size={20} className="text-[#F97316] mt-0.5 flex-shrink-0" />
-        <div className="flex-1">
-          <p className="font-bold text-[#0A0A0A] tracking-tight">Η συνδρομή σας ακυρώνεται</p>
-          <p className="text-[13px] text-[#6B7280] mt-0.5">
-            Έχετε πρόσβαση σε όλες τις Pro λειτουργίες μέχρι το τέλος της τρέχουσας περιόδου.
-            Επαναφέρετε τη συνδρομή σας από την πύλη πληρωμών για να συνεχίσετε χωρίς διακοπή.
-          </p>
-        </div>
-        {hasCustomer && (
-          <PortalButton className="text-[#F97316] hover:text-[#EA580C] whitespace-nowrap" />
-        )}
-      </div>
-    );
-  }
-
   if (isActiveSub) {
     return (
       <div className="flex items-center gap-3 px-5 py-4 bg-white border border-[#10B981]/30 rounded-lg shadow-card">
@@ -120,23 +38,6 @@ function StatusBanner({
             Συνδρομή Pro {status === 'trialing' ? '(Δοκιμαστική)' : 'ενεργή'}
           </p>
           <p className="text-[13px] text-[#6B7280] mt-0.5">Έχετε πλήρη πρόσβαση στο TableFlow.</p>
-        </div>
-        {hasCustomer && (
-          <PortalButton className="text-[#10B981] hover:text-[#047857]" />
-        )}
-      </div>
-    );
-  }
-
-  if (trialExpired) {
-    return (
-      <div className="flex items-start gap-3 px-5 py-4 bg-white border border-[#EF4444]/40 rounded-lg shadow-card">
-        <AlertTriangle size={20} className="text-[#EF4444] mt-0.5 flex-shrink-0" />
-        <div className="flex-1">
-          <p className="font-bold text-[#0A0A0A] tracking-tight">Η δωρεάν δοκιμή έληξε</p>
-          <p className="text-[13px] text-[#6B7280] mt-0.5">
-            Αναβαθμίστε σε Pro για να συνεχίσετε να χρησιμοποιείτε το TableFlow.
-          </p>
         </div>
       </div>
     );
@@ -151,7 +52,7 @@ function StatusBanner({
             Δωρεάν δοκιμή · {trialDaysLeft} {trialDaysLeft === 1 ? 'ημέρα' : 'ημέρες'} ακόμα
           </p>
           <p className="text-[13px] text-[#6B7280] mt-0.5">
-            Αναβαθμίστε πριν λήξει η δοκιμή για να συνεχίσετε χωρίς διακοπή.
+            Επικοινωνήστε μαζί μας πριν λήξει η δοκιμή για να συνεχίσετε χωρίς διακοπή.
           </p>
         </div>
       </div>
@@ -164,9 +65,9 @@ function StatusBanner({
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ success?: string; debug?: string }>;
+  searchParams: Promise<{ debug?: string }>;
 }) {
-  const { success, debug } = await searchParams;
+  const { debug } = await searchParams;
 
   const restaurant = await getMyRestaurant();
 
@@ -179,49 +80,41 @@ export default async function BillingPage({
   const { data: ownedRestaurants } = debugMode
     ? await supabase
         .from('restaurants')
-        .select('id, name, plan, subscription_status, stripe_customer_id, stripe_subscription_id, trial_ends_at, created_at')
+        .select('id, name, plan, subscription_status, trial_ends_at, created_at')
         .eq('owner_id', user?.id ?? '')
         .order('created_at', { ascending: true })
     : { data: null };
 
   const subStatus = restaurant?.subscription_status ?? null;
   const isActiveSub = subStatus === 'active' || subStatus === 'trialing' || subStatus === 'canceling';
-  const hasCustomer = !!restaurant?.stripe_customer_id;
-  const proPrice = await getProPriceLabel();
 
   // In-app trial maths. trial_ends_at is set on restaurant creation
   // (now() + 7 days). Show a countdown banner while it's still in the future
-  // and the user hasn't subscribed yet; show the expired banner once it's
-  // passed and there's still no subscription.
+  // and the user hasn't subscribed yet. Expired users are redirected to
+  // /trial-ended by the proxy before they can reach this page.
   const trialEndsAt = restaurant?.trial_ends_at ?? null;
   const trialEndsMs = trialEndsAt ? new Date(trialEndsAt).getTime() : null;
   const now = Date.now();
   const trialActive = !!trialEndsMs && trialEndsMs > now;
-  const trialExpired = !!trialEndsMs && trialEndsMs <= now && !isActiveSub;
   const trialDaysLeft = trialActive && !isActiveSub
     ? Math.max(1, Math.ceil((trialEndsMs! - now) / (1000 * 60 * 60 * 24)))
     : null;
 
+  const mailtoSubject = encodeURIComponent('Συνέχιση συνδρομής TableFlow');
+  const mailtoBody = encodeURIComponent(
+    `Γεια σας,\n\nΘα ήθελα να συνεχίσω να χρησιμοποιώ το TableFlow μετά τη δοκιμή.\n\nΕυχαριστώ.`
+  );
+  const mailtoHref = `mailto:${CONTACT_EMAIL}?subject=${mailtoSubject}&body=${mailtoBody}`;
+
   return (
     <>
-      <TopBar title="Συνδρομή" subtitle="Διαχείριση πλάνου & χρεώσεων" />
+      <TopBar title="Συνδρομή" subtitle="Διαχείριση πλάνου & επικοινωνία" />
       <div className="flex-1 overflow-y-auto overflow-x-hidden max-w-full p-3 md:p-6 space-y-4 md:space-y-6">
 
-        {success === '1' && (
-          <div className="flex items-center gap-3 px-5 py-4 bg-white border border-[#10B981]/30 rounded-lg shadow-card">
-            <CheckCircle2 size={20} className="text-[#10B981]" />
-            <p className="text-[#0A0A0A] font-semibold">
-              Η πληρωμή ολοκληρώθηκε! Η συνδρομή σας θα ενεργοποιηθεί σε λίγα δευτερόλεπτα.
-            </p>
-          </div>
-        )}
-
-        <StatusBanner
-          status={subStatus}
-          hasCustomer={hasCustomer}
-          isActiveSub={isActiveSub}
+        <TrialBanner
           trialDaysLeft={trialDaysLeft}
-          trialExpired={trialExpired}
+          isActiveSub={isActiveSub}
+          status={subStatus}
         />
 
         {debug === '1' && (
@@ -233,11 +126,8 @@ export default async function BillingPage({
               selected_restaurant_id: restaurant?.id ?? null,
               selected_subscription_status: subStatus,
               selected_trial_ends_at: trialEndsAt,
-              selected_stripe_subscription_id: restaurant?.stripe_subscription_id ?? null,
-              selected_stripe_customer_id: restaurant?.stripe_customer_id ?? null,
               derived_isActiveSub: isActiveSub,
               derived_trialActive: trialActive,
-              derived_trialExpired: trialExpired,
               derived_trialDaysLeft: trialDaysLeft,
               owned_restaurants_count: ownedRestaurants?.length ?? 0,
               owned_restaurants: ownedRestaurants ?? [],
@@ -252,7 +142,7 @@ export default async function BillingPage({
               TableFlow Pro
             </h2>
             <p className="text-[14px] md:text-[15px] text-[#6B7280] mt-2">
-              7 ημέρες δωρεάν δοκιμή. Χωρίς δέσμευση — ακυρώστε όποτε θέλετε.
+              7 ημέρες δωρεάν δοκιμή. Χωρίς κάρτα, χωρίς δέσμευση.
             </p>
           </div>
 
@@ -275,22 +165,8 @@ export default async function BillingPage({
                   <Zap size={24} className="text-white" strokeWidth={2.4} />
                 </div>
                 <h3 className="text-[24px] md:text-[26px] font-extrabold tracking-tight text-[#0A0A0A]">Pro</h3>
-                <div className="flex items-baseline gap-1.5 mt-3">
-                  <span
-                    className="text-[64px] md:text-[80px] font-extrabold tracking-tight leading-none"
-                    style={{
-                      background: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      backgroundClip: 'text',
-                    }}
-                  >
-                    {proPrice.amount}
-                  </span>
-                  <span className="text-[14px] md:text-[15px] font-bold text-[#6B7280]">{proPrice.interval}</span>
-                </div>
                 <p className="text-[13px] mt-3 text-[#0A0A0A] font-medium">
-                  Δωρεάν για 7 ημέρες, στη συνέχεια αυτόματη χρέωση μέσω Stripe.
+                  Δωρεάν για 7 ημέρες. Επικοινωνήστε μαζί μας για να συνεχίσετε μετά τη δοκιμή.
                 </p>
               </div>
 
@@ -312,46 +188,55 @@ export default async function BillingPage({
                     Είστε σε Pro
                   </div>
                 ) : (
-                  <SubscribeButton
-                    plan="pro"
-                    className="shimmer-cta py-4 text-[14px] md:text-[15px] tracking-tight rounded-xl text-white shadow-orange-glow"
-                  />
+                  <a
+                    href={mailtoHref}
+                    className="w-full inline-flex items-center justify-center gap-2 py-4 rounded-xl text-white font-extrabold tracking-tight text-[14px] md:text-[15px] transition-transform active:scale-[0.98]"
+                    style={{
+                      background: 'linear-gradient(135deg, #FB923C 0%, #F97316 50%, #EA580C 100%)',
+                      boxShadow: '0 10px 24px rgba(249, 115, 22, 0.30)',
+                    }}
+                  >
+                    <Sparkles size={16} strokeWidth={2.6} />
+                    Επικοινωνία για συνέχιση
+                  </a>
                 )}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-[#E5E7EB] shadow-card p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <CreditCard size={18} className="text-[#0A0A0A]" />
-            <h3 className="font-bold text-[#0A0A0A] tracking-tight">Στοιχεία Πληρωμής</h3>
-          </div>
-          <div className="bg-[#F8F8F8] border border-[#E5E7EB] rounded-lg p-4 flex items-center gap-4">
-            <div className="w-12 h-8 bg-[#0A0A0A] rounded-md flex items-center justify-center">
-              <span className="text-[10px] font-bold text-white tracking-wider">VISA</span>
+        {/* ─── Contact info card ───────────────────────────────────────── */}
+        <div className="max-w-[520px] mx-auto w-full">
+          <div className="bg-white rounded-lg border border-[#E5E7EB] shadow-card p-6">
+            <h3 className="font-bold text-[#0A0A0A] tracking-tight mb-4">Επικοινωνία</h3>
+            <div className="space-y-3">
+              <a
+                href={`tel:${CONTACT_PHONE}`}
+                className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-[#F8F8F8] border border-[#E5E7EB] hover:border-[#F97316]/40 hover:bg-white transition-colors group"
+              >
+                <span className="w-10 h-10 rounded-xl bg-white border border-[#E5E7EB] flex items-center justify-center group-hover:border-[#F97316]/30">
+                  <Phone size={16} className="text-[#F97316]" strokeWidth={2.4} />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] uppercase tracking-[0.14em] font-bold text-[#6B7280]">Τηλέφωνο</p>
+                  <p className="text-[15px] font-bold text-[#0A0A0A] tracking-tight">{CONTACT_PHONE_DISPLAY}</p>
+                </div>
+              </a>
+
+              <a
+                href={mailtoHref}
+                className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-[#F8F8F8] border border-[#E5E7EB] hover:border-[#F97316]/40 hover:bg-white transition-colors group"
+              >
+                <span className="w-10 h-10 rounded-xl bg-white border border-[#E5E7EB] flex items-center justify-center group-hover:border-[#F97316]/30">
+                  <Mail size={16} className="text-[#F97316]" strokeWidth={2.4} />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] uppercase tracking-[0.14em] font-bold text-[#6B7280]">Email</p>
+                  <p className="text-[14px] md:text-[15px] font-bold text-[#0A0A0A] tracking-tight break-all">{CONTACT_EMAIL}</p>
+                </div>
+              </a>
             </div>
-            <div className="flex-1">
-              {hasCustomer ? (
-                <>
-                  <p className="text-[13px] font-semibold text-[#0A0A0A]">Διαχειριστείτε τα στοιχεία πληρωμής σας</p>
-                  <p className="text-[12px] text-[#6B7280]">Ακύρωση, αλλαγή κάρτας ή προβολή ιστορικού χρεώσεων</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-[13px] font-semibold text-[#0A0A0A]">Δεν έχει προστεθεί κάρτα πληρωμής</p>
-                  <p className="text-[12px] text-[#6B7280]">Προσθέστε κάρτα κατά την ενεργοποίηση του Pro</p>
-                </>
-              )}
-            </div>
-            {hasCustomer && (
-              <PortalButton className="text-[#F97316] hover:text-[#EA580C]" />
-            )}
           </div>
-          <p className="text-[11px] text-[#6B7280] mt-3 flex items-center gap-1.5">
-            <Shield size={12} />
-            Ασφαλείς συναλλαγές μέσω Stripe. Ακύρωση οποτεδήποτε.
-          </p>
         </div>
 
       </div>

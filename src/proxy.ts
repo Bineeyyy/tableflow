@@ -74,8 +74,8 @@ export async function proxy(request: NextRequest) {
         path: '/', httpOnly: true, sameSite: 'lax', maxAge: SUB_STATUS_TTL,
       })
 
-      if (!isAccessAllowed(status, trialEnds || null) && !path.startsWith('/dashboard/billing')) {
-        return NextResponse.redirect(new URL('/dashboard/billing', request.url))
+      if (!isAccessAllowed(status, trialEnds || null)) {
+        return NextResponse.redirect(new URL('/trial-ended', request.url))
       }
     } else if (!cachedStatus || cachedTrialEnds === undefined) {
       const { data } = await supabase
@@ -101,14 +101,11 @@ export async function proxy(request: NextRequest) {
         path: '/', httpOnly: true, sameSite: 'lax', maxAge: SUB_STATUS_TTL,
       })
 
-      if (!isAccessAllowed(status, trialEnds || null) && !path.startsWith('/dashboard/billing')) {
-        return NextResponse.redirect(new URL('/dashboard/billing', request.url))
+      if (!isAccessAllowed(status, trialEnds || null)) {
+        return NextResponse.redirect(new URL('/trial-ended', request.url))
       }
-    } else if (
-      !isAccessAllowed(cachedStatus, cachedTrialEnds || null)
-      && !path.startsWith('/dashboard/billing')
-    ) {
-      return NextResponse.redirect(new URL('/dashboard/billing', request.url))
+    } else if (!isAccessAllowed(cachedStatus, cachedTrialEnds || null)) {
+      return NextResponse.redirect(new URL('/trial-ended', request.url))
     }
   }
 
