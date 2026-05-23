@@ -1,10 +1,12 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { isAccessBlocked } from '@/lib/stripe'
+import { isAccessAllowed } from '@/lib/stripe'
 
 const RESTAURANT_COOKIE = 'tf_restaurant_id'
 const SUB_STATUS_COOKIE = 'tf_sub_status'
-// Sub-status cookie refreshes every hour so subscription changes propagate quickly
+const TRIAL_ENDS_COOKIE = 'tf_trial_ends'
+// Refresh the status + trial cookies once an hour so subscription changes
+// and trial-clock ticks propagate without forcing a DB hit on every nav.
 const SUB_STATUS_TTL = 60 * 60
 
 export async function proxy(request: NextRequest) {
@@ -35,12 +37,10 @@ export async function proxy(request: NextRequest) {
 
   const path = request.nextUrl.pathname
 
-  // Unauthenticated users cannot access dashboard or onboarding
   if (!user && (path.startsWith('/dashboard') || path === '/onboarding')) {
     return NextResponse.redirect(new URL('/auth/login', request.url))
   }
 
-  // Authenticated users are bounced away from auth pages
   if (user && (path === '/auth/login' || path === '/auth/register')) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
@@ -48,12 +48,12 @@ export async function proxy(request: NextRequest) {
   if (user && path.startsWith('/dashboard')) {
     const restaurantId = request.cookies.get(RESTAURANT_COOKIE)?.value
     const cachedStatus = request.cookies.get(SUB_STATUS_COOKIE)?.value
+    const cachedTrialEnds = request.cookies.get(TRIAL_ENDS_COOKIE)?.value
 
     if (!restaurantId) {
-      // Full check: find restaurant and subscription status
       const { data } = await supabase
         .from('restaurants')
-        .select('id, subscription_status')
+        .select('id, subscription_status, trial_ends_at')
         .eq('owner_id', user.id)
         .limit(1)
         .maybeSingle()
@@ -63,52 +63,55 @@ export async function proxy(request: NextRequest) {
       }
 
       const status = data.subscription_status ?? 'none'
+      const trialEnds = data.trial_ends_at ?? ''
       supabaseResponse.cookies.set(RESTAURANT_COOKIE, data.id, {
         path: '/', httpOnly: true, sameSite: 'lax', maxAge: 30 * 24 * 60 * 60,
       })
       supabaseResponse.cookies.set(SUB_STATUS_COOKIE, status, {
         path: '/', httpOnly: true, sameSite: 'lax', maxAge: SUB_STATUS_TTL,
       })
+      supabaseResponse.cookies.set(TRIAL_ENDS_COOKIE, trialEnds, {
+        path: '/', httpOnly: true, sameSite: 'lax', maxAge: SUB_STATUS_TTL,
+      })
 
-      if (isAccessBlocked(status) && !path.startsWith('/dashboard/billing')) {
+      if (!isAccessAllowed(status, trialEnds || null) && !path.startsWith('/dashboard/billing')) {
         return NextResponse.redirect(new URL('/dashboard/billing', request.url))
       }
-    } else if (!cachedStatus) {
-      // Restaurant known but status cache expired — recheck only subscription_status
+    } else if (!cachedStatus || cachedTrialEnds === undefined) {
       const { data } = await supabase
         .from('restaurants')
-        .select('subscription_status')
+        .select('subscription_status, trial_ends_at')
         .eq('id', restaurantId)
         .maybeSingle()
 
-      // Cookie pointed at a restaurant we can no longer see (deleted,
-      // transferred, or stale across an account switch). Clear both cookies
-      // and bounce to /onboarding — without this the user lands on the empty
-      // dashboard with no link out.
       if (!data) {
         const redirect = NextResponse.redirect(new URL('/onboarding', request.url))
         redirect.cookies.delete(RESTAURANT_COOKIE)
         redirect.cookies.delete(SUB_STATUS_COOKIE)
+        redirect.cookies.delete(TRIAL_ENDS_COOKIE)
         return redirect
       }
 
       const status = data.subscription_status ?? 'none'
+      const trialEnds = data.trial_ends_at ?? ''
       supabaseResponse.cookies.set(SUB_STATUS_COOKIE, status, {
         path: '/', httpOnly: true, sameSite: 'lax', maxAge: SUB_STATUS_TTL,
       })
+      supabaseResponse.cookies.set(TRIAL_ENDS_COOKIE, trialEnds, {
+        path: '/', httpOnly: true, sameSite: 'lax', maxAge: SUB_STATUS_TTL,
+      })
 
-      if (isAccessBlocked(status) && !path.startsWith('/dashboard/billing')) {
+      if (!isAccessAllowed(status, trialEnds || null) && !path.startsWith('/dashboard/billing')) {
         return NextResponse.redirect(new URL('/dashboard/billing', request.url))
       }
-    } else if (isAccessBlocked(cachedStatus) && !path.startsWith('/dashboard/billing')) {
+    } else if (
+      !isAccessAllowed(cachedStatus, cachedTrialEnds || null)
+      && !path.startsWith('/dashboard/billing')
+    ) {
       return NextResponse.redirect(new URL('/dashboard/billing', request.url))
     }
   }
 
-  // Authenticated user with a restaurant visiting /onboarding → send to dashboard.
-  // Verifying the cookie means a stale id (deleted/transferred restaurant) doesn't
-  // trap the user in a redirect loop where /dashboard is empty and /onboarding
-  // bounces back. If the row is gone, clear cookies and let them onboard.
   if (user && path === '/onboarding') {
     const restaurantId = request.cookies.get(RESTAURANT_COOKIE)?.value
     if (restaurantId) {
@@ -122,6 +125,7 @@ export async function proxy(request: NextRequest) {
       }
       supabaseResponse.cookies.delete(RESTAURANT_COOKIE)
       supabaseResponse.cookies.delete(SUB_STATUS_COOKIE)
+      supabaseResponse.cookies.delete(TRIAL_ENDS_COOKIE)
     }
   }
 

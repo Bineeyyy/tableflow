@@ -45,3 +45,32 @@ export function isAccessBlocked(status: string | null): boolean {
     || status === 'incomplete_expired'
     || status === 'unpaid';
 }
+
+// Status values that mean the customer has a real paid subscription (or one
+// that's still inside its in-Stripe trial window). When any of these holds,
+// the in-app trial gate is irrelevant — the user is a paying customer.
+export function hasPaidSubscription(status: string | null): boolean {
+  return status === 'active'
+    || status === 'trialing'
+    || status === 'canceling';
+}
+
+// In-app trial gate. New restaurants are stamped with trial_ends_at = now()+7d
+// on creation. Access stays open until that timestamp passes; after that, the
+// only way back in is an active Stripe subscription.
+export function isTrialActive(trialEndsAt: string | null): boolean {
+  if (!trialEndsAt) return false;
+  return new Date(trialEndsAt).getTime() > Date.now();
+}
+
+// Single source of truth for "can this restaurant use the dashboard right now?"
+// Used by the proxy and the dashboard pages. Order matters: an active paid
+// subscription always wins; otherwise we fall back to the trial timestamp.
+export function isAccessAllowed(
+  status: string | null,
+  trialEndsAt: string | null,
+): boolean {
+  if (hasPaidSubscription(status)) return true;
+  if (isAccessBlocked(status)) return false;
+  return isTrialActive(trialEndsAt);
+}

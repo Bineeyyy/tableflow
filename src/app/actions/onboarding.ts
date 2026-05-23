@@ -46,6 +46,11 @@ export async function createRestaurant(_: unknown, formData: FormData) {
   // the user is in restaurant_members — has_restaurant_access would return false).
   const restaurantId = crypto.randomUUID()
 
+  // 7-day free trial starts the moment the restaurant is created. The DB
+  // column also has a default, but we set it explicitly here so the value
+  // is deterministic and easy to surface in logs.
+  const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+
   const { error: restError } = await supabase
     .from('restaurants')
     .insert({
@@ -54,6 +59,7 @@ export async function createRestaurant(_: unknown, formData: FormData) {
       address: address || null,
       phone: phone || null,
       owner_id: user.id,
+      trial_ends_at: trialEndsAt,
     })
 
   if (restError) {

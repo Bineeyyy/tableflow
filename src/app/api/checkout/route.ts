@@ -58,13 +58,18 @@ export async function POST(request: NextRequest) {
   const cookieStore = await cookies();
   const pinnedId = cookieStore.get(RESTAURANT_COOKIE)?.value;
 
-  let restaurant: { id: string; plan: string | null; stripe_customer_id: string | null } | null = null;
+  let restaurant: {
+    id: string;
+    plan: string | null;
+    stripe_customer_id: string | null;
+    subscription_status: string | null;
+  } | null = null;
   let restErr: { message?: string } | null = null;
 
   if (pinnedId) {
     const { data, error } = await supabase
       .from('restaurants')
-      .select('id, plan, stripe_customer_id')
+      .select('id, plan, stripe_customer_id, subscription_status')
       .eq('id', pinnedId)
       .eq('owner_id', user.id)
       .maybeSingle();
@@ -75,7 +80,7 @@ export async function POST(request: NextRequest) {
   if (!restaurant && !restErr) {
     const { data, error } = await supabase
       .from('restaurants')
-      .select('id, plan, stripe_customer_id')
+      .select('id, plan, stripe_customer_id, subscription_status')
       .eq('owner_id', user.id)
       .order('created_at', { ascending: true })
       .limit(1)
@@ -89,7 +94,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Σφάλμα ανάγνωσης εστιατορίου' }, { status: 500 });
   }
   if (!restaurant) return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
-  if (restaurant.plan !== 'free') {
+  // Block re-subscription when a real paid subscription already exists.
+  // We can't gate on plan === 'pro' alone because a trial restaurant still has
+  // plan === 'free' (the column flips on checkout.session.completed). Use
+  // subscription_status as the source of truth.
+  const subStatus = restaurant.subscription_status;
+  if (subStatus === 'active' || subStatus === 'trialing' || subStatus === 'canceling') {
     return NextResponse.json({ error: 'Already on a paid plan' }, { status: 400 });
   }
 
@@ -116,6 +126,11 @@ export async function POST(request: NextRequest) {
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing?success=1`,
       cancel_url:  `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing`,
       subscription_data: {
+        // 7-day Stripe trial. The card is collected at checkout but the first
+        // invoice is generated only after the trial window. This is on top of
+        // the in-app trial_ends_at so users who never reach Stripe still get a
+        // 7-day window; users who do subscribe pay nothing until day 7.
+        trial_period_days: 7,
         metadata: { restaurant_id: restaurant.id },
       },
     });
