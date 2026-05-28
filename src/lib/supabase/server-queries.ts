@@ -9,6 +9,14 @@ type DbReservation = Tables<'reservations'>;
 type DbOrder = Tables<'orders'>;
 type DbMenuCategory = Tables<'menu_categories'>;
 type DbMenuItem = Tables<'menu_items'>;
+type DbWalkin = Tables<'walkins'>;
+
+export type WalkinRow = {
+  id: string;
+  table_id: string | null;
+  party_size: number;
+  occurred_at: string;
+};
 
 const RESTAURANT_COOKIE = 'tf_restaurant_id';
 
@@ -119,6 +127,34 @@ export const getTodayActiveReservationCount = cache(async (restaurantId: string)
     .not('status', 'in', '(cancelled,completed)');
   if (error) return 0;
   return count ?? 0;
+});
+
+// Walk-ins occurring in the supplied [startIso, endIso] date window. Used by
+// the reports page to add walk-in activity to per-day/per-hour breakdowns.
+// Range is on `occurred_at` (timestamptz) so we pass full-day boundaries.
+export const getWalkinsForRestaurantInRange = cache(async (
+  restaurantId: string,
+  startIso: string,
+  endIso: string,
+): Promise<WalkinRow[]> => {
+  const supabase = await createClient();
+  // Inclusive endIso → cover up to end-of-day by adding 24h to the upper bound.
+  const startTs = `${startIso}T00:00:00`;
+  const endTs = `${endIso}T23:59:59.999`;
+  const { data, error } = await supabase
+    .from('walkins')
+    .select('id, table_id, party_size, occurred_at')
+    .eq('restaurant_id', restaurantId)
+    .gte('occurred_at', startTs)
+    .lte('occurred_at', endTs)
+    .order('occurred_at', { ascending: true });
+  if (error || !data) return [];
+  return data.map((w: Pick<DbWalkin, 'id' | 'table_id' | 'party_size' | 'occurred_at'>) => ({
+    id: w.id,
+    table_id: w.table_id ?? null,
+    party_size: w.party_size,
+    occurred_at: w.occurred_at,
+  }));
 });
 
 export const getOpenOrdersForRestaurant = cache(async (restaurantId: string): Promise<DbOrder[]> => {

@@ -6,6 +6,7 @@ import {
   getMyRestaurant,
   getTablesForRestaurant,
   getReservationsForRestaurant,
+  getWalkinsForRestaurantInRange,
 } from '@/lib/supabase/server-queries';
 import { CalendarCheck, Users, UtensilsCrossed, TrendingUp } from 'lucide-react';
 import type { Reservation } from '@/types';
@@ -51,12 +52,13 @@ export default async function ReportsPage(props: {
     );
   }
 
-  const [tables, allReservations] = await Promise.all([
+  const { startIso, endIso, days } = periodRange(period);
+
+  const [tables, allReservations, walkins] = await Promise.all([
     getTablesForRestaurant(restaurant.id),
     getReservationsForRestaurant(restaurant.id),
+    getWalkinsForRestaurantInRange(restaurant.id, startIso, endIso),
   ]);
-
-  const { startIso, endIso, days } = periodRange(period);
 
   const inPeriod = (r: Reservation) => r.date >= startIso && r.date <= endIso;
   const isActive = (r: Reservation) => r.status !== 'cancelled';
@@ -64,18 +66,29 @@ export default async function ReportsPage(props: {
   const periodReservations = allReservations.filter(inPeriod);
   const activeReservations = periodReservations.filter(isActive);
 
-  const totalGuests       = activeReservations.reduce((s, r) => s + r.guests, 0);
+  // Reports show "every activity in the room" — both reservation guests and
+  // walk-in parties contribute to occupancy, guest counts, and busy-hour
+  // breakdowns. Walk-ins live in their own table; we fold them in at the
+  // aggregation step rather than as synthetic Reservation rows so the
+  // reservations list stays clean.
+  const walkinGuestSum = walkins.reduce((s, w) => s + w.party_size, 0);
+  const reservationGuestSum = activeReservations.reduce((s, r) => s + r.guests, 0);
+
+  const totalGuests       = reservationGuestSum + walkinGuestSum;
   const reservationCount  = activeReservations.length;
-  const avgPartySize      = reservationCount > 0
-    ? Math.round((totalGuests / reservationCount) * 10) / 10
+  const walkinCount       = walkins.length;
+  const activityCount     = reservationCount + walkinCount;
+  const avgPartySize      = activityCount > 0
+    ? Math.round((totalGuests / activityCount) * 10) / 10
     : 0;
 
-  // Πληρότητα: avg reservations per day vs total tables, capped at 100%.
+  // Πληρότητα: avg activity (reservations + walk-ins) per day vs total tables,
+  // capped at 100%.
   const tablesCount = Math.max(tables.length, 1);
-  const avgPerDay = reservationCount / days;
+  const avgPerDay = activityCount / days;
   const occupancyPct = Math.min(100, Math.round((avgPerDay / tablesCount) * 100));
 
-  // Reservations per day — last 7 days within the selected period (or fewer for "today").
+  // Activity per day — last 7 days within the selected period (or fewer for "today").
   const chartDays = Math.min(7, days);
   const dayBuckets: { iso: string; date: Date; count: number; guests: number }[] = [];
   for (let i = chartDays - 1; i >= 0; i--) {
@@ -90,9 +103,17 @@ export default async function ReportsPage(props: {
       bucket.guests += r.guests;
     }
   }
+  for (const w of walkins) {
+    const iso = w.occurred_at.slice(0, 10);
+    const bucket = dayBuckets.find(b => b.iso === iso);
+    if (bucket) {
+      bucket.count += 1;
+      bucket.guests += w.party_size;
+    }
+  }
   const maxDayCount = Math.max(1, ...dayBuckets.map(b => b.count));
 
-  // Busiest hours — group reserved_time hour across the period.
+  // Busiest hours — combine reservation reserved_time and walk-in occurred_at hour.
   const hourBuckets = new Map<number, number>();
   for (let h = 12; h <= 23; h++) hourBuckets.set(h, 0);
   for (const r of activeReservations) {
@@ -101,9 +122,15 @@ export default async function ReportsPage(props: {
       hourBuckets.set(hour, (hourBuckets.get(hour) ?? 0) + 1);
     }
   }
+  for (const w of walkins) {
+    const hour = new Date(w.occurred_at).getHours();
+    if (hourBuckets.has(hour)) {
+      hourBuckets.set(hour, (hourBuckets.get(hour) ?? 0) + 1);
+    }
+  }
   const maxHour = Math.max(1, ...Array.from(hourBuckets.values()));
 
-  // Status breakdown.
+  // Status breakdown (reservations only — walk-ins have no status).
   const statusCount = {
     confirmed: periodReservations.filter(r => r.status === 'confirmed').length,
     pending:   periodReservations.filter(r => r.status === 'pending').length,
@@ -113,10 +140,13 @@ export default async function ReportsPage(props: {
   };
   const totalForStatus = Math.max(1, periodReservations.length);
 
-  // Per-table reservation counts.
+  // Per-table activity counts — count both reservations and walk-ins so a
+  // table that hosts mostly walk-ins still scores on the heatmap.
   const tableCounts = tables.map(t => ({
     table: t,
-    count: activeReservations.filter(r => r.table_id === t.id).length,
+    count:
+      activeReservations.filter(r => r.table_id === t.id).length +
+      walkins.filter(w => w.table_id === t.id).length,
   }));
   const maxTableCount = Math.max(1, ...tableCounts.map(t => t.count));
 
@@ -156,24 +186,24 @@ export default async function ReportsPage(props: {
             icon={Users}
           />
           <StatCard
-            title="Κρατήσεις"
-            value={reservationCount}
-            subtitle={`από ${periodReservations.length} συνολικά`}
+            title="Δραστηριότητα"
+            value={activityCount}
+            subtitle={`${reservationCount} κρατήσεις · ${walkinCount} walk-in`}
             icon={CalendarCheck}
           />
           <StatCard
             title="Μέσος όρος"
             value={avgPartySize}
-            subtitle="άτομα ανά κράτηση"
+            subtitle="άτομα ανά τραπέζι"
             icon={UtensilsCrossed}
           />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Reservations per day chart */}
+          {/* Activity per day chart */}
           <div className="lg:col-span-2 bg-white rounded-lg border border-[#E5E7EB] shadow-card p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-bold text-[#0A0A0A] tracking-tight">Κρατήσεις ανά ημέρα</h3>
+              <h3 className="font-bold text-[#0A0A0A] tracking-tight">Δραστηριότητα ανά ημέρα</h3>
               <span className="text-[10px] font-bold text-[#6B7280] bg-[#F8F8F8] border border-[#E5E7EB] px-3 py-1 rounded-md uppercase tracking-wider">
                 Τελευταίες {chartDays} {chartDays === 1 ? 'ημέρα' : 'ημέρες'}
               </span>
@@ -191,7 +221,7 @@ export default async function ReportsPage(props: {
                         style={{ height }}
                       />
                       <div className="absolute -top-7 left-1/2 -translate-x-1/2 hidden group-hover:block bg-[#0A0A0A] text-white text-[11px] font-bold px-2 py-1 rounded-md whitespace-nowrap z-10 tabular-nums">
-                        {b.count} κρατ. · {b.guests} άτ.
+                        {b.count} ενεργ. · {b.guests} άτ.
                       </div>
                     </div>
                     <div className="text-center">
@@ -202,7 +232,7 @@ export default async function ReportsPage(props: {
               })}
             </div>
             <div className="mt-4 pt-4 border-t border-[#E5E7EB] flex items-center justify-between text-[12px] text-[#6B7280]">
-              <span>Σύνολο: <strong className="text-[#0A0A0A] font-bold tabular-nums">{dayBuckets.reduce((s, b) => s + b.count, 0)} κρατήσεις</strong></span>
+              <span>Σύνολο: <strong className="text-[#0A0A0A] font-bold tabular-nums">{dayBuckets.reduce((s, b) => s + b.count, 0)} ενέργειες</strong></span>
               <span>Επισκέπτες: <strong className="text-[#F97316] font-bold tabular-nums">{dayBuckets.reduce((s, b) => s + b.guests, 0)} άτομα</strong></span>
             </div>
           </div>
@@ -232,7 +262,12 @@ export default async function ReportsPage(props: {
 
         {/* Status breakdown */}
         <div className="bg-white rounded-lg border border-[#E5E7EB] shadow-card p-6">
-          <h3 className="font-bold text-[#0A0A0A] tracking-tight mb-5">Κατάσταση Κρατήσεων</h3>
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="font-bold text-[#0A0A0A] tracking-tight">Κατάσταση Κρατήσεων</h3>
+            <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">
+              + {walkinCount} walk-in (χωρίς κατάσταση)
+            </span>
+          </div>
           {periodReservations.length === 0 ? (
             <p className="text-[12px] text-[#6B7280]">Δεν υπάρχουν κρατήσεις στο επιλεγμένο διάστημα.</p>
           ) : (
@@ -240,8 +275,6 @@ export default async function ReportsPage(props: {
               <div className="flex h-3 rounded-full overflow-hidden bg-[#F8F8F8]">
                 {([
                   { key: 'confirmed', count: statusCount.confirmed, color: '#10B981' },
-                  { key: 'seated',    count: statusCount.seated,    color: '#F97316' },
-                  { key: 'pending',   count: statusCount.pending,   color: '#FB923C' },
                   { key: 'completed', count: statusCount.completed, color: '#0A0A0A' },
                   { key: 'cancelled', count: statusCount.cancelled, color: '#D1D5DB' },
                 ] as const).map(s => (
@@ -254,11 +287,9 @@ export default async function ReportsPage(props: {
                   ) : null
                 ))}
               </div>
-              <div className="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {[
                   { label: 'Επιβεβαιωμένες', count: statusCount.confirmed, color: '#10B981' },
-                  { label: 'Καθισμένες',     count: statusCount.seated,    color: '#F97316' },
-                  { label: 'Εκκρεμείς',      count: statusCount.pending,   color: '#FB923C' },
                   { label: 'Ολοκληρωμένες',  count: statusCount.completed, color: '#0A0A0A' },
                   { label: 'Ακυρωμένες',     count: statusCount.cancelled, color: '#D1D5DB' },
                 ].map(s => (
@@ -275,9 +306,9 @@ export default async function ReportsPage(props: {
           )}
         </div>
 
-        {/* Reservations per table */}
+        {/* Activity per table */}
         <div className="bg-white rounded-lg border border-[#E5E7EB] shadow-card p-6">
-          <h3 className="font-bold text-[#0A0A0A] tracking-tight mb-5">Κρατήσεις ανά Τραπέζι</h3>
+          <h3 className="font-bold text-[#0A0A0A] tracking-tight mb-5">Δραστηριότητα ανά Τραπέζι</h3>
           {tables.length === 0 ? (
             <p className="text-[12px] text-[#6B7280]">Δεν έχουν προστεθεί τραπέζια.</p>
           ) : (
@@ -302,7 +333,7 @@ export default async function ReportsPage(props: {
             </div>
           )}
           <div className="flex items-center gap-4 mt-4 pt-4 border-t border-[#E5E7EB]">
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-[#F97316]" /><span className="text-[12px] font-medium text-[#6B7280]">Κρατήσεις</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-[#F97316]" /><span className="text-[12px] font-medium text-[#6B7280]">Κρατήσεις + walk-in</span></div>
             <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-[#F8F8F8] border border-[#E5E7EB]" /><span className="text-[12px] font-medium text-[#6B7280]">Χωρίς</span></div>
           </div>
         </div>

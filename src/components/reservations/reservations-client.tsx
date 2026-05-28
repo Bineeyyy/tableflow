@@ -39,10 +39,16 @@ function mapReservationRow(r: DbReservation): Reservation {
 const STATUS_CONFIG: Record<ReservationStatus, { label: string; color: string; icon: React.ReactNode }> = {
   pending:   { label: 'Εκκρεμής',      color: 'bg-[#F97316]/10 text-[#C2410C] ring-1 ring-inset ring-[#F97316]/20', icon: <AlertCircle size={12} />     },
   confirmed: { label: 'Επιβεβαιωμένη', color: 'bg-[#10B981]/10 text-[#047857] ring-1 ring-inset ring-[#10B981]/20', icon: <CheckCircle2 size={12} />    },
-  seated:    { label: 'Εστιατόριο',    color: 'bg-[#3B82F6]/10 text-[#1D4ED8] ring-1 ring-inset ring-[#3B82F6]/20', icon: <UtensilsCrossed size={12} /> },
+  seated:    { label: 'Στο τραπέζι',   color: 'bg-[#3B82F6]/10 text-[#1D4ED8] ring-1 ring-inset ring-[#3B82F6]/20', icon: <UtensilsCrossed size={12} /> },
   completed: { label: 'Ολοκληρώθηκε',  color: 'bg-[#F8F8F8] text-[#6B7280] ring-1 ring-inset ring-[#E5E7EB]',       icon: <CheckCircle2 size={12} />    },
   cancelled: { label: 'Ακυρώθηκε',     color: 'bg-[#EF4444]/10 text-[#B91C1C] ring-1 ring-inset ring-[#EF4444]/20', icon: <XCircle size={12} />         },
 };
+
+// Statuses the operator can pick from the UI. `pending` is a legacy initial
+// state and `seated` is set automatically by the waiter flow — neither is
+// useful as a manual dropdown choice. Existing rows with those statuses
+// still render their badge via STATUS_CONFIG above.
+const USER_SELECTABLE_STATUSES: ReservationStatus[] = ['confirmed', 'completed', 'cancelled'];
 
 type DateFilter = 'today' | 'tomorrow' | 'all';
 
@@ -247,7 +253,7 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
   };
 
   const getTableLabel = (tableId?: string) => {
-    if (!tableId) return 'Αδιάθετο';
+    if (!tableId) return 'Χωρίς τραπέζι';
     const t = tables.find(t => t.id === tableId);
     return t ? `Τραπέζι ${t.number}${t.label ? ` (${t.label})` : ''}` : '—';
   };
@@ -392,23 +398,26 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
                         </button>
                         {openStatusId === r.id && (
                           <div role="menu" className="absolute right-0 top-full mt-1 w-44 bg-white border border-[#E5E7EB] rounded-lg shadow-pop z-20 overflow-hidden">
-                            {(Object.entries(STATUS_CONFIG) as [ReservationStatus, typeof STATUS_CONFIG[ReservationStatus]][]).map(([key, cfg]) => (
-                              <button
-                                key={key}
-                                role="menuitem"
-                                onClick={() => {
-                                  setOpenStatusId(null);
-                                  if (key === 'cancelled' && r.status !== 'cancelled') {
-                                    setCancelConfirm({ id: r.id, name: r.name });
-                                  } else {
-                                    changeStatus(r.id, key);
-                                  }
-                                }}
-                                className={cn('w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-[#F8F8F8] transition-colors', r.status === key && 'bg-[#F8F8F8] font-bold')}
-                              >
-                                {cfg.icon}<span>{cfg.label}</span>
-                              </button>
-                            ))}
+                            {USER_SELECTABLE_STATUSES.map(key => {
+                              const cfg = STATUS_CONFIG[key];
+                              return (
+                                <button
+                                  key={key}
+                                  role="menuitem"
+                                  onClick={() => {
+                                    setOpenStatusId(null);
+                                    if (key === 'cancelled' && r.status !== 'cancelled') {
+                                      setCancelConfirm({ id: r.id, name: r.name });
+                                    } else {
+                                      changeStatus(r.id, key);
+                                    }
+                                  }}
+                                  className={cn('w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-[#F8F8F8] transition-colors', r.status === key && 'bg-[#F8F8F8] font-bold')}
+                                >
+                                  {cfg.icon}<span>{cfg.label}</span>
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -488,8 +497,8 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
             <label className="block text-[12px] font-semibold text-[#0A0A0A] mb-1.5 uppercase tracking-wider">Κατάσταση</label>
             <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as ReservationStatus }))}
               className="w-full px-3 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15 bg-white">
-              {(Object.entries(STATUS_CONFIG) as [ReservationStatus, typeof STATUS_CONFIG[ReservationStatus]][]).map(([key, cfg]) => (
-                <option key={key} value={key}>{cfg.label}</option>
+              {USER_SELECTABLE_STATUSES.map(key => (
+                <option key={key} value={key}>{STATUS_CONFIG[key].label}</option>
               ))}
             </select>
           </div>

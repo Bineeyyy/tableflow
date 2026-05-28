@@ -9,6 +9,7 @@ import { TableDetailPanel } from './table-detail-panel';
 import { OccupyModal } from '@/components/ui/occupy-modal';
 import { setTableOccupancy } from '@/app/actions/waiter';
 import { createClient } from '@/lib/supabase/client';
+import { cn } from '@/lib/utils';
 import { LayoutGrid, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
 type DbTable = Tables<'restaurant_tables'>;
@@ -44,6 +45,23 @@ interface FloorPlanProps {
   todayReservations: Reservation[];
 }
 
+// Sentinel for the "Όλες" zone tab. Empty string mirrors the DB default for
+// tables with no zone set, so a literal `''` zone would clash — using a
+// symbol-like sentinel avoids that.
+const ZONE_ALL = '__ALL__';
+// Fallback bucket for tables whose zone column is null/empty. Visible as a
+// tab labelled "Χωρίς ζώνη" only if at least one such table exists.
+const ZONE_UNASSIGNED = '__UNASSIGNED__';
+
+// Canvas baseline — keep the same look-and-feel for small floor plans, then
+// grow horizontally and vertically once tables sit outside the box.
+const CANVAS_MIN_W = 860;
+const CANVAS_MIN_H = 580;
+// Padding around the rightmost/bottommost table so its status chip and
+// duration pill (which render *below* the node) aren't clipped.
+const CANVAS_PAD_X = 80;
+const CANVAS_PAD_Y = 110;
+
 export function FloorPlan({ initialTables, restaurantId, todayReservations }: FloorPlanProps) {
   const router = useRouter();
   const [tables, setTables] = useState<Table[]>(initialTables);
@@ -52,6 +70,10 @@ export function FloorPlan({ initialTables, restaurantId, todayReservations }: Fl
   const [zoom, setZoom] = useState(1);
   const [occupyTarget, setOccupyTarget] = useState<Table | null>(null);
   const [live, setLive] = useState(false);
+  // Active zone tab. Persisted only in component state — switching zones is
+  // cheap and the realtime subscription keeps every zone fresh in the
+  // background, so a refresh resetting to "Όλες" is acceptable.
+  const [activeZone, setActiveZone] = useState<string>(ZONE_ALL);
   // Per-table in-flight set. Mirrors the guard the mobile FloorTab uses:
   // rapid double/triple taps would otherwise queue parallel server actions
   // whose final state is decided by whichever round-trip resolves last.
@@ -205,10 +227,72 @@ export function FloorPlan({ initialTables, restaurantId, todayReservations }: Fl
   const zoomOut = useCallback(() => setZoom(z => Math.max(0.6, z - 0.1)), []);
   const zoomIn = useCallback(() => setZoom(z => Math.min(1.8, z + 0.1)), []);
 
+  // Build the zone tabs from whatever zones the operator actually used. We
+  // never invent a tab — the bar reflects the real layout, so "Bar" only
+  // appears once at least one table is tagged with it.
+  const zoneList = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const t of tables) {
+      const key = t.zone && t.zone.trim() ? t.zone : ZONE_UNASSIGNED;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    // Stable ordering: Αίθουσα first when present (matches the historical
+    // label on the canvas), then alphabetical, with the catch-all tab last.
+    const named = Array.from(counts.entries())
+      .filter(([k]) => k !== ZONE_UNASSIGNED)
+      .sort(([a], [b]) => {
+        if (a === 'Αίθουσα') return -1;
+        if (b === 'Αίθουσα') return 1;
+        return a.localeCompare(b, 'el');
+      });
+    const unassigned = counts.get(ZONE_UNASSIGNED);
+    if (unassigned) named.push([ZONE_UNASSIGNED, unassigned]);
+    return named;
+  }, [tables]);
+
+  // Resolve the requested tab against the live zone list — if the active
+  // zone vanished (e.g. operator just removed its last table from settings),
+  // fall back to "Όλες" at render time instead of writing back through an
+  // effect. Avoids the set-state-in-effect cascade flagged by react-hooks.
+  const effectiveZone = useMemo(() => {
+    if (activeZone === ZONE_ALL) return ZONE_ALL;
+    return zoneList.some(([k]) => k === activeZone) ? activeZone : ZONE_ALL;
+  }, [activeZone, zoneList]);
+
+  // Tables for the currently visible tab. "Όλες" is the only zone that shows
+  // everything; otherwise filter by zone (treating null/empty as the
+  // unassigned bucket).
+  const visibleTables = useMemo(() => {
+    if (effectiveZone === ZONE_ALL) return tables;
+    if (effectiveZone === ZONE_UNASSIGNED) return tables.filter(t => !t.zone || !t.zone.trim());
+    return tables.filter(t => t.zone === effectiveZone);
+  }, [tables, effectiveZone]);
+
+  // Canvas size adapts to the rightmost/bottommost table in the visible set
+  // so large floor plans don't pile tables on top of each other. We floor at
+  // the original 860×580 so a sparse layout still looks airy.
+  const canvasSize = useMemo(() => {
+    let maxX = CANVAS_MIN_W - CANVAS_PAD_X;
+    let maxY = CANVAS_MIN_H - CANVAS_PAD_Y;
+    for (const t of visibleTables) {
+      if (t.x > maxX) maxX = t.x;
+      if (t.y > maxY) maxY = t.y;
+    }
+    return {
+      width:  Math.max(CANVAS_MIN_W, Math.ceil(maxX + CANVAS_PAD_X)),
+      height: Math.max(CANVAS_MIN_H, Math.ceil(maxY + CANVAS_PAD_Y)),
+    };
+  }, [visibleTables]);
+
   const stats = useMemo(() => ({
-    available: tables.filter(t => t.status === 'available').length,
-    occupied:  tables.filter(t => t.status === 'occupied').length,
-  }), [tables]);
+    available: visibleTables.filter(t => t.status === 'available').length,
+    occupied:  visibleTables.filter(t => t.status === 'occupied').length,
+  }), [visibleTables]);
+
+  const activeZoneLabel =
+    effectiveZone === ZONE_ALL ? 'Όλες οι ζώνες'
+      : effectiveZone === ZONE_UNASSIGNED ? 'Χωρίς ζώνη'
+      : effectiveZone;
 
   const reservationByTable = useMemo(() => {
     const map = new Map<string, Reservation>();
@@ -233,11 +317,11 @@ export function FloorPlan({ initialTables, restaurantId, todayReservations }: Fl
       {/* Floor Plan Canvas */}
       <div className="flex-1 flex flex-col gap-3 min-w-0 max-w-full">
         {/* Toolbar */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <LayoutGrid size={15} className="text-[#6B7280]" />
             <span className="text-[13px] font-semibold text-[#0A0A0A] tracking-tight">Κάτοψη Εστιατορίου</span>
-            <span className="text-[12px] text-[#6B7280]">· {tables.length} τραπέζια</span>
+            <span className="text-[12px] text-[#6B7280]">· {visibleTables.length}/{tables.length} τραπέζια</span>
             <span
               className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide ${
                 live ? 'bg-emerald-500/10 text-emerald-600' : 'bg-[#F8F8F8] text-[#6B7280]'
@@ -262,15 +346,50 @@ export function FloorPlan({ initialTables, restaurantId, todayReservations }: Fl
           </div>
         </div>
 
-        {/* Canvas — fixed 860x580 dark canvas with full-size dashed dining zone.
-            The inner sized area is horizontally centered in the flex-1 wrapper
-            so the αίθουσα box sits in the middle of any wider viewport. */}
+        {/* Zone tabs — only rendered when the operator has more than one zone
+            in use. A single-zone restaurant doesn't need the chrome. */}
+        {zoneList.length > 1 && (
+          <div className="flex gap-1 overflow-x-auto">
+            <button
+              onClick={() => setActiveZone(ZONE_ALL)}
+              className={cn(
+                'px-3 py-1.5 rounded-md text-[12px] font-bold whitespace-nowrap transition-colors',
+                effectiveZone === ZONE_ALL
+                  ? 'bg-[#0A0A0A] text-white'
+                  : 'bg-white text-[#0A0A0A] border border-[#E5E7EB] hover:bg-[#F8F8F8]',
+              )}
+            >
+              Όλες <span className="ml-1 opacity-70 tabular-nums">{tables.length}</span>
+            </button>
+            {zoneList.map(([key, count]) => {
+              const label = key === ZONE_UNASSIGNED ? 'Χωρίς ζώνη' : key;
+              const isActive = effectiveZone === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => setActiveZone(key)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-md text-[12px] font-bold whitespace-nowrap transition-colors',
+                    isActive
+                      ? 'bg-[#0A0A0A] text-white'
+                      : 'bg-white text-[#0A0A0A] border border-[#E5E7EB] hover:bg-[#F8F8F8]',
+                  )}
+                >
+                  {label} <span className="ml-1 opacity-70 tabular-nums">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Canvas — size grows with the visible tables so large floor plans
+            don't overlap. Min 860×580 to keep the airy look on small layouts. */}
         <div className="flex-1 rounded-lg border border-white/10 overflow-auto max-w-full flex justify-center" style={{ background: '#0F0F0F' }}>
           <div
             className="relative min-h-full flex-shrink-0"
             style={{
-              width: `${860 * zoom}px`,
-              height: `${580 * zoom}px`,
+              width: `${canvasSize.width * zoom}px`,
+              height: `${canvasSize.height * zoom}px`,
               backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)',
               backgroundSize: `${24 * zoom}px ${24 * zoom}px`,
               transform: `scale(${zoom})`,
@@ -283,10 +402,12 @@ export function FloorPlan({ initialTables, restaurantId, todayReservations }: Fl
               style={{ borderColor: 'rgba(255,255,255,0.10)' }}
             />
 
-            {/* ΑΙΘΟΥΣΑ — centered along the top of the zone */}
+            {/* Zone label — reflects the active tab so the canvas is honest
+                about what it's showing. Hidden when there's no real zone
+                context (single-zone restaurant on "Όλες"). */}
             <div className="absolute top-8 left-1/2 -translate-x-1/2 pointer-events-none">
               <span className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                Αίθουσα
+                {activeZoneLabel}
               </span>
             </div>
 
@@ -296,7 +417,7 @@ export function FloorPlan({ initialTables, restaurantId, todayReservations }: Fl
               <span className="text-[10px] text-[#F97316] uppercase tracking-[0.18em] font-bold">Είσοδος</span>
             </div>
 
-            {tables.map(table => (
+            {visibleTables.map(table => (
               <TableNode
                 key={table.id}
                 table={table}

@@ -61,6 +61,22 @@ export async function setTableOccupancy(tableId: string, params:
     if (!Number.isInteger(params.guests) || params.guests < 1 || params.guests > 20) {
       return { error: 'Μη έγκυρος αριθμός ατόμων' }
     }
+    // Was this an available→occupied flip (i.e. a fresh seating), or just a
+    // re-entry of guest count on an already-occupied row? Only the former
+    // counts as an in-room "event" for reporting. Reading status first means
+    // a misclick that re-occupies an occupied table doesn't double-count.
+    const { data: existing, error: readErr } = await supabase
+      .from('restaurant_tables')
+      .select('status')
+      .eq('id', tableId)
+      .eq('restaurant_id', restaurantId)
+      .maybeSingle()
+    if (readErr || !existing) {
+      console.error('[waiter] read table status failed:', readErr)
+      return { error: 'Δεν βρέθηκε το τραπέζι' }
+    }
+    const wasFree = existing.status === 'available'
+
     // seated_at marks when the current party arrived — used by the floor
     // plan to render an "X minutes seated" indicator. Always set on occupy
     // (not just on the available→occupied flip) so re-entering the guest
@@ -73,6 +89,23 @@ export async function setTableOccupancy(tableId: string, params:
     if (error) {
       console.error('[waiter] occupy table failed:', error)
       return { error: 'Σφάλμα κατά την ενημέρωση τραπεζιού.' }
+    }
+
+    // Activity ledger for reports: every fresh seating (manual occupy where
+    // no reservation is involved) lands in `walkins`. Reservation seatings
+    // are tracked via the reservations table itself, so we avoid logging
+    // those here to prevent double-counting in the totals.
+    if (wasFree) {
+      const { error: walkErr } = await supabase
+        .from('walkins')
+        .insert({
+          restaurant_id: restaurantId,
+          table_id: tableId,
+          party_size: params.guests,
+        })
+      // Don't fail the user-facing action if the ledger insert hiccups —
+      // the table is already occupied. Log so we notice.
+      if (walkErr) console.error('[waiter] walkin log failed:', walkErr)
     }
   } else {
     const { error } = await supabase
@@ -148,6 +181,17 @@ export async function createWalkin(guests: number) {
       return { error: 'Σφάλμα κατά την ενημέρωση τραπεζιού.' }
     }
     if (claimed && claimed.length > 0) {
+      // Log to walkins so reports can count this party in totals/occupancy
+      // alongside reservations. Failure here doesn't unwind the seating —
+      // the table is already claimed and the user has moved on.
+      const { error: walkErr } = await supabase
+        .from('walkins')
+        .insert({
+          restaurant_id: restaurantId,
+          table_id: candidate.id,
+          party_size: guests,
+        })
+      if (walkErr) console.error('[waiter] walkin log failed:', walkErr)
       return { success: true, tableNumber: candidate.number }
     }
     // Lost the race on this candidate — loop to pick the next-best fit.
