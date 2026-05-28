@@ -1,9 +1,9 @@
 'use client';
 
 import { memo } from 'react';
-import { Table, TableStatus } from '@/types';
+import { Table, TableStatus, Reservation } from '@/types';
 import { getStatusLabel, cn } from '@/lib/utils';
-import { Users } from 'lucide-react';
+import { Users, CalendarClock } from 'lucide-react';
 import { SeatedDuration } from './seated-duration';
 
 // On dark canvas: dark fill + bright border + colored glow so tables pop.
@@ -32,13 +32,15 @@ const STATUS_COLORS: Record<TableStatus, {
 
 interface TableNodeProps {
   table: Table;
+  reservation?: Reservation;
   isSelected: boolean;
   onClick: (table: Table) => void;
 }
 
-export const TableNode = memo(function TableNode({ table, isSelected, onClick }: TableNodeProps) {
+export const TableNode = memo(function TableNode({ table, reservation, isSelected, onClick }: TableNodeProps) {
   const colors = STATUS_COLORS[table.status];
   const free = table.status === 'available';
+  const hasReservation = Boolean(reservation);
 
   const sizeClass = table.shape === 'rectangle' ? 'w-28 h-16'
     : table.shape === 'round' ? 'w-16 h-16'
@@ -72,6 +74,19 @@ export const TableNode = memo(function TableNode({ table, isSelected, onClick }:
           <span className="text-[12px] font-bold text-white tracking-tight tabular-nums">#{table.number}</span>
           {table.label && (
             <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: colors.accent }}>{table.label}</span>
+          )}
+          {/* Reservation marker — small badge anchored to the top-right
+              corner of the table. Signals "this seat is spoken for tonight"
+              at a glance; click the table to see the customer's name, time,
+              and notes in the side panel. */}
+          {hasReservation && (
+            <div
+              className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-5 h-5 rounded-full bg-[#F97316] text-white shadow-md"
+              style={{ boxShadow: '0 0 0 2px #1A1A1A, 0 0 10px rgba(249,115,22,0.6)' }}
+              title={reservation ? `Κράτηση ${reservation.time} · ${reservation.name}` : 'Κράτηση'}
+            >
+              <CalendarClock size={10} strokeWidth={2.6} />
+            </div>
           )}
           <div className="flex items-center gap-0.5">
             <Users size={8} className="text-white/50" />

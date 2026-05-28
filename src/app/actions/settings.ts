@@ -135,7 +135,15 @@ export async function saveRestaurantSettings(data: {
   const newCount = Math.min(200, Math.max(1, data.capacity))
 
   if (newCount > currentCount) {
+    // Auto-layout grid for newly-added tables. 80px-wide square nodes with
+    // 170px center-to-center spacing leaves ~90px gaps — wide enough that
+    // status chips below each table never visually crowd the neighbour.
+    // Five columns keeps the airy αίθουσα look for typical small floors.
     const COLS = 5
+    const COL_SPACING = 170
+    const ROW_SPACING = 170
+    const OFFSET_X = 110
+    const OFFSET_Y = 110
     const startNumber = (rows[rows.length - 1]?.number ?? 0) + 1
     // New tables default to 4 seats and a square shape — owner edits each
     // table's capacity/shape individually afterwards. We deliberately do NOT
@@ -149,8 +157,8 @@ export async function saveRestaurantSettings(data: {
         seats: 4,
         shape: 'square' as const,
         status: 'available' as const,
-        pos_x: 80 + (idx % COLS) * 140,
-        pos_y: 80 + Math.floor(idx / COLS) * 140,
+        pos_x: OFFSET_X + (idx % COLS) * COL_SPACING,
+        pos_y: OFFSET_Y + Math.floor(idx / COLS) * ROW_SPACING,
       }
     })
     // .select() so we get the inserted rows back; if RLS or constraints block,

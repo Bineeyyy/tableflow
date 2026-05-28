@@ -182,11 +182,20 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
         editItem?.id,
       );
       if ('error' in res) { setError(res.error); return; }
-      setReservations(prev =>
-        editItem
-          ? prev.map(r => r.id === editItem.id ? res.reservation : r)
-          : [res.reservation, ...prev],
-      );
+      // The realtime subscription may have already echoed this row into
+      // local state by the time the server action returns. Dedupe by id:
+      // update in place if present, prepend otherwise. Without this,
+      // newly-created reservations briefly appear twice in the list.
+      setReservations(prev => {
+        const idx = prev.findIndex(r => r.id === res.reservation.id);
+        if (idx === -1) {
+          if (editItem) return [...prev, res.reservation];
+          return [res.reservation, ...prev];
+        }
+        const next = prev.slice();
+        next[idx] = res.reservation;
+        return next;
+      });
       setShowModal(false);
     } finally {
       savingRef.current = false;
@@ -493,15 +502,10 @@ export function ReservationsClient({ initialReservations, tables, restaurantId }
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-[12px] font-semibold text-[#0A0A0A] mb-1.5 uppercase tracking-wider">Κατάσταση</label>
-            <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as ReservationStatus }))}
-              className="w-full px-3 py-2.5 border border-[#E5E7EB] rounded-lg text-[13px] focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/15 bg-white">
-              {USER_SELECTABLE_STATUSES.map(key => (
-                <option key={key} value={key}>{STATUS_CONFIG[key].label}</option>
-              ))}
-            </select>
-          </div>
+          {/* Status section removed from the form — new reservations default
+              to `confirmed` (set in makeEmptyForm) and existing rows keep
+              whatever status they had. Status is still changeable from the
+              "Αλλαγή" dropdown in the list row. */}
           <div className="col-span-2">
             <label className="block text-[12px] font-semibold text-[#0A0A0A] mb-1.5 uppercase tracking-wider">Σημειώσεις</label>
             <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}

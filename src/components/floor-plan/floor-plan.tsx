@@ -421,6 +421,7 @@ export function FloorPlan({ initialTables, restaurantId, todayReservations }: Fl
               <TableNode
                 key={table.id}
                 table={table}
+                reservation={reservationByTable.get(table.id)}
                 isSelected={selectedTable?.id === table.id}
                 onClick={handleTableClick}
               />
